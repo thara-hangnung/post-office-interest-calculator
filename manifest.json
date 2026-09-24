@@ -1,0 +1,23 @@
+{
+  "name": "Post Office Interest Calculator",
+  "short_name": "Post Office Saver",
+  "description": "A simple calculator for India Post small savings schemes.",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f6f3ee",
+  "theme_color": "#102f42",
+  "categories": ["finance", "utilities"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

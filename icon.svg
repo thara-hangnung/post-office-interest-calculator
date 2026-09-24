@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Post Office Saver</title>
+  <rect width="512" height="512" rx="112" fill="#ef6b3a"/>
+  <path d="M112 160 256 80l144 80v192H112Z" fill="#102f42" opacity=".18"/>
+  <text x="256" y="302" fill="#ffffff" font-family="Arial, sans-serif" font-size="132" font-weight="700" text-anchor="middle" letter-spacing="-12">PO</text>
+</svg>
