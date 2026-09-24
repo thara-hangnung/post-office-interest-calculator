@@ -438,6 +438,90 @@
     .secondary:hover { background: #edf5f6; border-color: var(--blue); }
     .secondary:disabled { opacity: .45; cursor: not-allowed; }
 
+    body.install-open { overflow: hidden; }
+
+    .install-popup {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(16, 47, 66, .52);
+    }
+
+    .install-popup-card {
+      position: relative;
+      width: min(100%, 430px);
+      padding: 25px;
+      background: var(--card);
+      border: 1px solid rgba(23, 49, 66, .08);
+      border-radius: 20px;
+      box-shadow: 0 24px 70px rgba(16, 47, 66, .28);
+    }
+
+    .install-popup-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      margin-bottom: 17px;
+      place-items: center;
+      color: var(--white);
+      background: var(--orange);
+      border-radius: 12px 12px 12px 3px;
+      font-size: 14px;
+      font-weight: 850;
+      letter-spacing: -.08em;
+    }
+
+    .install-popup h2 {
+      margin-bottom: 8px;
+      font-size: 23px;
+      letter-spacing: -.05em;
+    }
+
+    .install-popup p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .install-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .install-close:hover { color: var(--ink); background: #f0f3f1; }
+
+    .install-popup-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 22px;
+    }
+
+    .install-hint {
+      margin-top: 15px !important;
+      padding: 10px 11px;
+      color: var(--blue) !important;
+      background: #edf5f6;
+      border-radius: 9px;
+      font-size: 11px !important;
+    }
+
     .error {
       margin-top: 12px;
       padding: 10px 12px;
@@ -705,6 +789,7 @@
       .topbar { margin-bottom: 12px; }
       .top-links { display: none; }
       .hero, .controls-card { display: none !important; }
+      .install-popup { display: none !important; }
       .result-scheme { display: none; }
       .layout { display: block; }
       .card { box-shadow: none; }
@@ -797,6 +882,10 @@
       td small { font-size: 10px; }
       td.rate, td.compound { white-space: normal; }
       .footnote { margin-top: 13px; font-size: 10px; }
+      .install-popup { align-items: end; padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+      .install-popup-card { padding: 20px; border-radius: 17px; }
+      .install-popup-actions { flex-direction: column-reverse; }
+      .install-popup-actions button { width: 100%; }
     }
 
     @media print {
@@ -972,6 +1061,20 @@
     </section>
   </main>
 
+  <div class="install-popup" id="installPopup" role="dialog" aria-modal="true" aria-labelledby="installTitle" aria-describedby="installDescription" hidden>
+    <div class="install-popup-card">
+      <div class="install-popup-mark" aria-hidden="true">PO</div>
+      <button class="install-close" id="installClose" type="button" aria-label="Close install prompt">×</button>
+      <h2 id="installTitle">Install Post Office Saver</h2>
+      <p id="installDescription">Add the calculator to your home screen for quick access and offline use.</p>
+      <div class="install-popup-actions">
+        <button class="secondary" id="dismissInstall" type="button">Not now</button>
+        <button class="primary" id="installApp" type="button">Install app</button>
+      </div>
+      <p class="install-hint" id="installHint" hidden>Use your browser menu and choose “Add to Home Screen” or “Install app”.</p>
+    </div>
+  </div>
+
   <script>
     const schemeList = [
       {
@@ -1079,6 +1182,18 @@
     const printYears = document.getElementById('printYears');
     let selectedId = 'rd';
     let rateEdited = false;
+    const INSTALL_DISMISS_KEY = 'post-office-install-dismissed-at';
+    const INSTALL_DONE_KEY = 'post-office-install-completed';
+    const installPopup = document.getElementById('installPopup');
+    const installTitle = document.getElementById('installTitle');
+    const installDescription = document.getElementById('installDescription');
+    const installHint = document.getElementById('installHint');
+    const installApp = document.getElementById('installApp');
+    const dismissInstall = document.getElementById('dismissInstall');
+    const installClose = document.getElementById('installClose');
+    let deferredInstallPrompt = null;
+    let installFallbackTimer = null;
+    let lastFocusedElement = null;
 
     function money(value, decimals = 0) {
       return new Intl.NumberFormat('en-IN', {
@@ -1150,6 +1265,107 @@
       range.addEventListener('touchstart', dismiss, { passive: true });
       range.addEventListener('mousedown', dismiss);
       range.addEventListener('input', dismiss);
+    }
+
+    function getStorageValue(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    }
+
+    function setStorageValue(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        return;
+      }
+    }
+
+    function isStandalone() {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    }
+
+    function installWasDismissed() {
+      const timestamp = Number(getStorageValue(INSTALL_DISMISS_KEY));
+      return Number.isFinite(timestamp) && Date.now() - timestamp < 30 * 24 * 60 * 60 * 1000;
+    }
+
+    function canOfferInstall() {
+      return !isStandalone() && getStorageValue(INSTALL_DONE_KEY) !== 'true' && !installWasDismissed();
+    }
+
+    function clearInstallFallback() {
+      if (installFallbackTimer) {
+        window.clearTimeout(installFallbackTimer);
+        installFallbackTimer = null;
+      }
+    }
+
+    function showInstallPopup() {
+      if (!canOfferInstall()) return;
+      clearInstallFallback();
+      if (!installPopup.hidden) {
+        installTitle.textContent = deferredInstallPrompt ? 'Install Post Office Saver' : 'Add Post Office Saver';
+        installDescription.textContent = deferredInstallPrompt ? 'Add the calculator to your home screen for quick access and offline use.' : 'Use your browser menu to add this calculator to your home screen for quick access and offline use.';
+        installApp.textContent = deferredInstallPrompt ? 'Install app' : 'Show install steps';
+        installApp.disabled = false;
+        return;
+      }
+      lastFocusedElement = document.activeElement;
+      installTitle.textContent = deferredInstallPrompt ? 'Install Post Office Saver' : 'Add Post Office Saver';
+      installDescription.textContent = deferredInstallPrompt ? 'Add the calculator to your home screen for quick access and offline use.' : 'Use your browser menu to add this calculator to your home screen for quick access and offline use.';
+      installApp.textContent = deferredInstallPrompt ? 'Install app' : 'Show install steps';
+      installApp.disabled = false;
+      installHint.hidden = true;
+      installPopup.hidden = false;
+      document.body.classList.add('install-open');
+      installApp.focus({ preventScroll: true });
+    }
+
+    function closeInstallPopup() {
+      installPopup.hidden = true;
+      document.body.classList.remove('install-open');
+      if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') lastFocusedElement.focus({ preventScroll: true });
+      lastFocusedElement = null;
+    }
+
+    function dismissInstallPopup() {
+      setStorageValue(INSTALL_DISMISS_KEY, String(Date.now()));
+      clearInstallFallback();
+      closeInstallPopup();
+    }
+
+    async function promptForInstall() {
+      if (!deferredInstallPrompt) {
+        installHint.textContent = 'Open your browser menu and choose “Add to Home Screen” or “Install app”.';
+        installHint.hidden = false;
+        return;
+      }
+      const prompt = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      installApp.disabled = true;
+      try {
+        prompt.prompt();
+        const choice = await prompt.userChoice;
+        if (choice.outcome === 'accepted') setStorageValue(INSTALL_DONE_KEY, 'true');
+        else setStorageValue(INSTALL_DISMISS_KEY, String(Date.now()));
+        closeInstallPopup();
+      } catch {
+        installApp.disabled = false;
+        installHint.textContent = 'Installation could not start. Use your browser menu to add the app manually.';
+        installHint.hidden = false;
+      }
+    }
+
+    function scheduleInstallFallback() {
+      clearInstallFallback();
+      if (!canOfferInstall()) return;
+      installFallbackTimer = window.setTimeout(() => {
+        installFallbackTimer = null;
+        if (!deferredInstallPrompt) showInstallPopup();
+      }, 1400);
     }
 
     function renderOptions() {
@@ -1405,6 +1621,30 @@
       event.preventDefault();
       render();
     });
+
+    window.addEventListener('beforeinstallprompt', event => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      if (canOfferInstall()) showInstallPopup();
+    });
+
+    window.addEventListener('appinstalled', () => {
+      setStorageValue(INSTALL_DONE_KEY, 'true');
+      deferredInstallPrompt = null;
+      clearInstallFallback();
+      closeInstallPopup();
+    });
+
+    installApp.addEventListener('click', promptForInstall);
+    installClose.addEventListener('click', dismissInstallPopup);
+    dismissInstall.addEventListener('click', dismissInstallPopup);
+    installPopup.addEventListener('click', event => {
+      if (event.target === installPopup) dismissInstallPopup();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !installPopup.hidden) dismissInstallPopup();
+    });
+    scheduleInstallFallback();
 
     renderOptions();
     renderRateTable();
