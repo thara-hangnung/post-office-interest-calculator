@@ -1,8 +1,7 @@
-const CACHE_NAME = 'post-office-saver-v1';
+const CACHE_NAME = 'post-office-saver-v2';
 const APP_SHELL = [
   './',
   './index.html',
-  './index-original.html',
   './manifest.json',
   './icon.svg'
 ];
