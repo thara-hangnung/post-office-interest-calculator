@@ -1082,48 +1082,105 @@
       td.rate, td.compound { text-align: left; }
       td::before { display: none; }
     }
+    @media screen {
+      .top-links a { font-size: 13px; }
+      .brand { font-size: 16px; }
+      .brand small { font-size: 10px; }
+      .hero p:not(.eyebrow) { font-size: 14px; }
+      .hero-steps span { font-size: 12px; }
+      .hero-steps b { font-size: 11px; }
+      .rate-date span, .rate-date small { font-size: 10px; }
+      .rate-date strong { font-size: 18px; }
+      .card-heading p, .rates-heading p { font-size: 12px; }
+      .control-label { font-size: 12px; }
+      select { font-size: 16px; }
+      .range-labels { font-size: 11px; }
+      .control-hint, .scheme-hint { font-size: 11px; }
+      .form-footer > span { font-size: 11px; }
+      .primary, .secondary { font-size: 14px; }
+      .result-top > span:first-child { font-size: 11px; }
+      .result-scheme { font-size: 13px; }
+      .rate-pill { font-size: 10px; }
+      .result-label { font-size: 12px; }
+      .result-caption { font-size: 12px; }
+      .metric-label { font-size: 11px; }
+      .metric-value { font-size: 17px; }
+      .breakdown-heading { font-size: 11px; }
+      .legend { font-size: 11px; }
+      .updated { font-size: 10px; }
+      td strong { font-size: 13px; }
+      td.rate { font-size: 13px; }
+      td.compound { font-size: 11px; }
+      .footnote { font-size: 11px; }
+      .install-popup h2 { font-size: 22px; }
+      .install-popup p { font-size: 13px; }
+    }
+
+    @media screen and (max-width: 560px) {
+      .hero p:not(.eyebrow) { font-size: 13px; }
+      .hero-steps span { font-size: 11px; }
+      .card-heading p, .rates-heading p { font-size: 12px; }
+      .control-label { font-size: 12px; }
+      .control-hint, .scheme-hint { font-size: 11px; }
+      .form-footer > span { font-size: 11px; }
+      .result-caption { font-size: 12px; }
+      .metric-label { font-size: 10px; }
+      .metric-value { font-size: 16px; }
+      td strong { font-size: 13px; }
+      td.rate { font-size: 12px; }
+      td.compound { font-size: 11px; }
+      .footnote { font-size: 10px; }
+    }
+    @media screen {
+      .app { width: min(760px, calc(100% - 28px)); padding: 28px 0 42px; }
+      h1 { margin: 0 0 18px; font-size: clamp(1.7rem, 4vw, 2.3rem); letter-spacing: -.06em; white-space: nowrap; }
+      .topbar { display: none; }
+      .layout { display: flex; flex-direction: column; gap: 18px; }
+      .controls-card, .result-card { width: 100%; padding: 20px; border-radius: 16px; }
+      .card-heading { display: none; }
+      .control { margin-bottom: 18px; }
+      .control-box { padding: 0; background: transparent; border: 0; border-radius: 0; }
+      .control-top { display: block; margin-bottom: 0; }
+      .control-label { display: block; margin-bottom: 6px; font-size: 12px; }
+      .number-field { width: 100%; min-height: 44px; margin-bottom: 6px; }
+      .range-labels { display: none; }
+      .control-hint { margin-top: 5px; font-size: 11px; }
+      .form-footer { display: block; margin-top: 4px; padding: 0; border: 0; }
+      .form-footer > span { display: none; }
+      .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .button-group button { width: 100%; }
+      .result-card { position: static; color: var(--ink); background: var(--card); border: 1px solid rgba(23, 49, 66, .08); box-shadow: var(--shadow); }
+      .result-top { margin-bottom: 8px; }
+      .result-top > span:first-child { color: var(--ink); font-size: 18px; letter-spacing: -.03em; }
+      .rate-pill { color: var(--teal); background: #e8f6f2; }
+      .result-scheme { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+      .result-label { color: var(--muted); font-size: 13px; }
+      .result-value { color: var(--teal); font-size: 30px; margin-bottom: 8px; }
+      .result-caption { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+      .divider { background: var(--line); }
+      .metrics { gap: 12px; margin-bottom: 14px; }
+      .metric-label { color: var(--muted); }
+      .metric-value { color: var(--ink); }
+      .breakdown-heading { color: var(--muted); }
+      .breakdown-bar { background: #eef1ef; }
+      .legend { color: var(--muted); }
+      .result-note { display: none; }
+    }
+
+    @media screen and (max-width: 560px) {
+      .app { width: calc(100% - 20px); padding-top: 20px; }
+      .controls-card, .result-card { padding: 16px; }
+      .layout { gap: 12px; }
+      h1 { font-size: clamp(1.1rem, 5.6vw, 1.8rem); }
+    }
   </style>
 </head>
 <body>
   <main class="app">
-    <header class="topbar">
-      <a class="brand" href="./index.html" aria-label="Post Office Interest Calculator home">
-        <span class="brand-mark">PO</span>
-        <span>Post Office Saver<small>Small savings, clearly calculated</small></span>
-      </a>
-      <nav class="top-links" aria-label="Page links">
-        <a href="https://www.indiapost.gov.in/banking-services/savings" target="_blank" rel="noopener">Official rates ↗</a>
-      </nav>
-    </header>
-
-    <section class="hero" aria-labelledby="page-title">
-      <div class="hero-copy">
-        <p class="eyebrow">India Post savings</p>
-        <h1 id="page-title">See your savings grow.</h1>
-        <p>Choose a scheme. Slide the values. See your result.</p>
-        <div class="hero-steps" aria-label="How the calculator works">
-          <span><b>1</b>Choose</span>
-          <span><b>2</b>Slide</span>
-          <span><b>3</b>Save</span>
-        </div>
-      </div>
-      <div class="rate-date">
-        <span>Rates checked</span>
-        <strong>12 Aug 2026</strong>
-        <small>Official source</small>
-      </div>
-    </section>
+    <h1>Post Office Interest Calculator</h1>
 
     <section class="layout" aria-label="Post Office interest calculator">
       <form class="card controls-card" id="calculatorForm" novalidate>
-        <div class="card-heading">
-          <div>
-            <h2>Set your plan</h2>
-            <p>Choose, slide, calculate.</p>
-          </div>
-          <span class="step" aria-hidden="true">1</span>
-        </div>
-
         <div class="control">
           <label class="control-label" for="schemeSelect">Scheme</label>
           <select id="schemeSelect" name="scheme"></select>
@@ -1226,28 +1283,6 @@
       </aside>
     </section>
 
-    <section class="card rates-card" aria-labelledby="ratesTitle">
-      <div class="rates-heading">
-        <div>
-          <h2 id="ratesTitle">Rates</h2>
-          <p>Starting points from India Post.</p>
-        </div>
-        <span class="updated">Updated 12 Aug 2026</span>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Scheme</th>
-              <th scope="col">Rate</th>
-              <th scope="col">Term</th>
-            </tr>
-          </thead>
-          <tbody id="ratesTable"></tbody>
-        </table>
-      </div>
-      <p class="footnote">Rates can change. Verify with India Post before investing. <a href="https://www.indiapost.gov.in/banking-services/savings" target="_blank" rel="noopener">Official rates ↗</a></p>
-    </section>
   </main>
 
   <div class="install-popup" id="installPopup" role="dialog" aria-modal="true" aria-labelledby="installTitle" aria-describedby="installDescription" hidden>
@@ -1568,19 +1603,7 @@
     }
 
     function renderOptions() {
-      schemeSelect.innerHTML = schemeList.map(scheme => `<option value="${scheme.id}">${scheme.name}</option>`).join('');
-    }
-
-    function termFor(scheme) {
-      if (scheme.id === 'td') return '1 / 2 / 3 / 5 years';
-      if (scheme.id === 'sb') return 'Flexible';
-      if (scheme.yearsMin === scheme.yearsMax) return `${scheme.yearsMin} years`;
-      return `${scheme.yearsMin}–${scheme.yearsMax} years`;
-    }
-
-    function renderRateTable() {
-      const tbody = document.getElementById('ratesTable');
-      tbody.innerHTML = schemeList.map(scheme => `<tr><td data-label="Scheme"><strong>${scheme.shortName}</strong></td><td data-label="Rate" class="rate">${scheme.tableRate}</td><td data-label="Term" class="compound">${termFor(scheme)}</td></tr>`).join('');
+      schemeSelect.innerHTML = schemeList.map(scheme => `<option value="${scheme.id}">${scheme.shortName}</option>`).join('');
     }
 
     function updateRateHint() {
@@ -1850,7 +1873,6 @@
     scheduleInstallFallback();
 
     renderOptions();
-    renderRateTable();
     setScheme();
 
     if ('serviceWorker' in navigator) {
