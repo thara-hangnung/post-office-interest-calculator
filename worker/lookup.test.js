@@ -20,4 +20,6 @@ if (publicRecord(record, new Date('2026-09-25T00:00:00Z')).dateOfMaturity !== '1
 const manualRecord = { ...record, manual_deposit_count: 3, manual_deposit_total: 7500, last_deposit_date: '20-09-2026' };
 const manualPublic = publicRecord(manualRecord, new Date('2026-09-25T00:00:00Z'));
 if (manualPublic.completedInstallments !== 3 || manualPublic.estimatedDeposit !== 7500 || manualPublic.depositSource !== 'manual' || manualPublic.asOf !== '20-09-2026') throw new Error('manual deposit override failed');
+const pdfPublic = publicRecord({ ...manualRecord, balanceSource: 'pdf', last_deposit_source: 'pdf' }, new Date('2026-09-25T00:00:00Z'));
+if (pdfPublic.depositSource !== 'pdf' || pdfPublic.estimatedDeposit !== 7500) throw new Error('pdf balance source not reported');
 console.log('worker lookup tests passed');

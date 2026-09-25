@@ -2,6 +2,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node lookup.test.js"
+    "test": "node lookup.test.js && node pdf-import.test.js"
+  },
+  "dependencies": {
+    "unpdf": "^1.8.1"
   }
 }

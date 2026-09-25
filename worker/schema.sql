@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS recurring_deposits (
   monthly_installment REAL NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TEXT
+  deleted_at TEXT,
+  needs_details INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS recurring_deposits_lookup
@@ -38,6 +39,8 @@ CREATE TABLE IF NOT EXISTS recurring_deposit_entries (
   deposit_date TEXT NOT NULL,
   batch_id TEXT NOT NULL,
   created_by TEXT NOT NULL,
+  installment_count INTEGER NOT NULL DEFAULT 1,
+  source TEXT NOT NULL DEFAULT 'manual',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   reversed_at TEXT,
   reversed_by TEXT

@@ -1,5 +1,9 @@
 import adminHtml from './public/admin.html';
 import { normalizeDate, publicRecord } from './lookup.js';
+import { parseDepositPages, planImport } from './pdf-import.js';
+import { extractTextItems, getDocumentProxy } from 'unpdf';
+
+const MAX_PDF_BYTES = 10_000_000;
 
 const PUBLIC_ORIGINS = new Set([
   'https://thara-hangnung.github.io',
@@ -87,27 +91,40 @@ function textValue(value, maximum) {
   return String(value ?? '').trim().slice(0, maximum);
 }
 
-function validateRecord(input, existing = {}) {
+function validateRecord(input, existing = {}, allowIncomplete = false) {
   const name = textValue(input.name ?? existing.name, 200);
   const accountNo = String(input.accountNo ?? existing.account_no ?? '').replace(/\s+/g, '');
   const cif = textValue(input.cif ?? existing.cif, 32);
-  const dateOfOpening = normalizeDate(input.dateOfOpening ?? existing.date_of_opening);
+  const openingInput = input.dateOfOpening ?? existing.date_of_opening ?? '';
   const maturityInput = input.dateOfMaturity ?? existing.date_of_maturity ?? '';
+  const birthInput = input.dateOfBirth ?? existing.date_of_birth ?? '';
+  const dateOfOpening = openingInput ? normalizeDate(openingInput) : '';
   const dateOfMaturity = maturityInput ? normalizeDate(maturityInput) : '';
-  const dateOfBirth = normalizeDate(input.dateOfBirth ?? existing.date_of_birth);
+  const dateOfBirth = birthInput ? normalizeDate(birthInput) : '';
   const monthlyInstallment = Number(input.monthlyInstallment ?? existing.monthly_installment);
 
   if (!name) throw new Error('Name is required.');
   if (!/^\d{8,20}$/.test(accountNo)) throw new Error('Account number must contain 8 to 20 digits.');
-  if (!cif) throw new Error('CIF is required.');
-  if (!dateOfOpening) throw new Error('Enter a valid opening date.');
+  if (openingInput && !dateOfOpening) throw new Error('Enter a valid opening date.');
   if (maturityInput && !dateOfMaturity) throw new Error('Enter a valid maturity date.');
-  if (!dateOfBirth) throw new Error('Enter a valid date of birth.');
+  if (birthInput && !dateOfBirth) throw new Error('Enter a valid date of birth.');
   if (!Number.isFinite(monthlyInstallment) || monthlyInstallment < 0 || monthlyInstallment > 10_000_000) {
     throw new Error('Enter a valid monthly installment.');
   }
+  if (!allowIncomplete && (!cif || !dateOfOpening || !dateOfBirth)) {
+    throw new Error('CIF, opening date, and date of birth are required.');
+  }
 
-  return { name, accountNo, cif, dateOfOpening, dateOfMaturity, dateOfBirth, monthlyInstallment };
+  return {
+    name,
+    accountNo,
+    cif,
+    dateOfOpening,
+    dateOfMaturity,
+    dateOfBirth,
+    monthlyInstallment,
+    needsDetails: !cif || !dateOfOpening || !dateOfBirth
+  };
 }
 
 function adminRecord(row) {
@@ -120,10 +137,12 @@ function adminRecord(row) {
     dateOfMaturity: row.date_of_maturity || '',
     dateOfBirth: row.date_of_birth,
     monthlyInstallment: Number(row.monthly_installment),
+    needsDetails: Boolean(Number(row.needs_details || 0)),
     manualDepositTotal: Number(row.manual_deposit_total || 0),
     manualDepositCount: Number(row.manual_deposit_count || 0),
     lastDepositDate: row.last_deposit_date || '',
     lastDepositBatchId: row.last_deposit_batch_id || '',
+    balanceSource: row.last_deposit_source || '',
     createdAt: row.created_at || '',
     updatedAt: row.updated_at || '',
     deletedAt: row.deleted_at || null
@@ -140,6 +159,193 @@ async function readJson(request) {
   }
 }
 
+async function readPdf(request) {
+  const declared = Number(request.headers.get('Content-Length') || 0);
+  if (declared > MAX_PDF_BYTES) throw new Error('That PDF is too large.');
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (!bytes.byteLength) throw new Error('No PDF was uploaded.');
+  if (bytes.byteLength > MAX_PDF_BYTES) throw new Error('That PDF is too large.');
+  if (new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') throw new Error('That file is not a PDF.');
+  return bytes;
+}
+
+function toIsoDate(value) {
+  const parts = String(value || '').split('-');
+  return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : '';
+}
+
+async function extractPdfRows(bytes) {
+  try {
+    const pdf = await getDocumentProxy(bytes);
+    const { items } = await extractTextItems(pdf, { mergePages: false });
+    return parseDepositPages(items);
+  } catch {
+    throw new Error('Could not read this PDF. Upload the Deposit Accounts report from the agent portal.');
+  }
+}
+
+async function loadImportRecords(env) {
+  const result = await env.DB.prepare(`
+    SELECT r.id, r.account_no, r.name, r.monthly_installment, r.date_of_opening, r.deleted_at,
+           (SELECT MAX(e.deposit_date) FROM recurring_deposit_entries e
+            WHERE e.record_id = r.id AND e.reversed_at IS NULL AND e.source = 'pdf') AS last_pdf_date,
+           COALESCE((SELECT SUM(e.amount) FROM recurring_deposit_entries e
+                     WHERE e.record_id = r.id AND e.reversed_at IS NULL), 0) AS balance,
+           COALESCE((SELECT SUM(e.installment_count) FROM recurring_deposit_entries e
+                     WHERE e.record_id = r.id AND e.reversed_at IS NULL), 0) AS installments
+    FROM recurring_deposits r
+  `).all();
+  const records = (result.results || []).map((row) => ({
+    id: Number(row.id),
+    accountNo: row.account_no,
+    name: row.name,
+    monthlyInstallment: Number(row.monthly_installment || 0),
+    opening: row.date_of_opening || '',
+    lastPdfDate: toIsoDate(row.last_pdf_date),
+    installments: Number(row.installments || 0),
+    balance: Number(row.balance || 0),
+    deletedAt: row.deleted_at || ''
+  }));
+  return { records, liveCount: records.filter((record) => !record.deletedAt).length };
+}
+
+function importPayload(plan, extra = {}) {
+  return {
+    printedOn: plan.printedOn,
+    batchId: plan.batchId,
+    counts: plan.counts,
+    problems: plan.problems,
+    warnings: plan.warnings,
+    totals: plan.totals,
+    missing: plan.missing,
+    sample: plan.changes.slice(0, 12).map((change) => ({
+      accountNo: change.accountNo,
+      name: change.name,
+      action: change.action,
+      installmentsBefore: change.installmentsBefore ?? null,
+      installmentsAfter: change.monthPaidUpTo,
+      balanceBefore: change.balanceBefore,
+      balanceAfter: change.balanceAfter,
+      nameChanged: Boolean(change.nameChanged),
+      installmentChanged: Boolean(change.installmentChanged),
+      warnings: change.warnings
+    })),
+    ...extra
+  };
+}
+
+async function buildImportPlan(request, env, url) {
+  const bytes = await readPdf(request);
+  const parsed = await extractPdfRows(bytes);
+  if (!parsed.printedOn) throw new Error('Could not find the "Printed on" date in the PDF.');
+  const { records, liveCount } = await loadImportRecords(env);
+  const plan = planImport({
+    rows: parsed.rows,
+    printedOn: parsed.printedOn,
+    records,
+    liveCount,
+    allowDecrease: url.searchParams.get('allowDecrease') === '1'
+  });
+  return { plan, records };
+}
+
+async function applyPdfImport(request, env, email, url) {
+  if (!requireSameOrigin(request)) throw new Error('Invalid request origin.');
+  const removeMissing = String(url.searchParams.get('removeMissing') || '')
+    .split(',')
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+  const { plan, records } = await buildImportPlan(request, env, url);
+  const blocking = plan.problems.filter((problem) => problem.level === 'error');
+  if (blocking.length) throw new Error(blocking.map((problem) => problem.message).join(' '));
+
+  const printedIso = toIsoDate(plan.printedOn);
+  const byAccount = new Map(records.map((record) => [record.accountNo, record]));
+  const writes = plan.changes.filter((change) => {
+    if (change.action === 'create') return true;
+    const record = byAccount.get(change.accountNo);
+    if (!record) return true;
+    if (change.action !== 'unchanged') return true;
+    return printedIso > (record.lastPdfDate || '');
+  });
+  const creates = writes.filter((change) => change.action === 'create');
+  if (!writes.length && !removeMissing.length) {
+    return importPayload(plan, { applied: false, message: 'Already up to date. Nothing was written.' });
+  }
+
+  const rowsJson = JSON.stringify(writes.map((change) => ({
+    a: change.accountNo,
+    n: change.name,
+    m: change.monthlyInstallment,
+    c: change.monthPaidUpTo,
+    o: change.opening,
+    y: change.maturity,
+    b: change.balanceAfter
+  })));
+  const createsJson = JSON.stringify(creates.map((change) => ({
+    a: change.accountNo,
+    n: change.name,
+    m: change.monthlyInstallment,
+    o: change.opening,
+    y: change.maturity
+  })));
+
+  const statements = [];
+  if (createsJson !== '[]') {
+    statements.push(env.DB.prepare(`
+      INSERT INTO recurring_deposits (name, account_no, monthly_installment, date_of_opening, date_of_maturity, needs_details)
+      SELECT json_extract(j.value, '$.n'), json_extract(j.value, '$.a'), json_extract(j.value, '$.m'),
+             NULLIF(json_extract(j.value, '$.o'), ''), NULLIF(json_extract(j.value, '$.y'), ''), 1
+      FROM json_each(?) AS j
+      WHERE NOT EXISTS (SELECT 1 FROM recurring_deposits r WHERE r.account_no = json_extract(j.value, '$.a'))
+    `).bind(createsJson));
+  }
+  if (rowsJson !== '[]') {
+    statements.push(env.DB.prepare(`
+      WITH incoming(value) AS (SELECT value FROM json_each(?))
+      UPDATE recurring_deposits AS r SET
+        name = COALESCE((SELECT json_extract(incoming.value, '$.n') FROM incoming WHERE json_extract(incoming.value, '$.a') = r.account_no), r.name),
+        monthly_installment = COALESCE((SELECT json_extract(incoming.value, '$.m') FROM incoming WHERE json_extract(incoming.value, '$.a') = r.account_no), r.monthly_installment),
+        date_of_opening = COALESCE(NULLIF((SELECT json_extract(incoming.value, '$.o') FROM incoming WHERE json_extract(incoming.value, '$.a') = r.account_no), ''), r.date_of_opening),
+        date_of_maturity = COALESCE(NULLIF((SELECT json_extract(incoming.value, '$.y') FROM incoming WHERE json_extract(incoming.value, '$.a') = r.account_no), ''), r.date_of_maturity),
+        deleted_at = NULL,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE EXISTS (SELECT 1 FROM incoming WHERE json_extract(incoming.value, '$.a') = r.account_no)
+    `).bind(rowsJson));
+    statements.push(env.DB.prepare(`
+      UPDATE recurring_deposit_entries SET reversed_at = CURRENT_TIMESTAMP, reversed_by = ?
+      WHERE reversed_at IS NULL AND source = 'pdf'
+        AND record_id IN (SELECT r.id FROM recurring_deposits r
+                          JOIN json_each(?) AS j ON json_extract(j.value, '$.a') = r.account_no)
+    `).bind(email, rowsJson));
+    statements.push(env.DB.prepare(`
+      INSERT INTO recurring_deposit_entries (record_id, amount, deposit_date, batch_id, created_by, installment_count, source)
+      SELECT r.id, json_extract(j.value, '$.b'), ?, ?, ?, json_extract(j.value, '$.c'), 'pdf'
+      FROM json_each(?) AS j
+      JOIN recurring_deposits r ON r.account_no = json_extract(j.value, '$.a')
+    `).bind(plan.printedOn, plan.batchId, email, rowsJson));
+  }
+  for (let start = 0; start < removeMissing.length; start += 50) {
+    const chunk = removeMissing.slice(start, start + 50);
+    statements.push(env.DB.prepare(`
+      UPDATE recurring_deposits SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE deleted_at IS NULL AND id IN (${chunk.map(() => '?').join(',')})
+    `).bind(...chunk));
+  }
+  statements.push(env.DB.prepare(`
+    INSERT INTO admin_audit_log (admin_email, action, record_id, batch_id) VALUES (?, ?, NULL, ?)
+  `).bind(email, removeMissing.length ? 'pdf_import_with_removals' : 'pdf_import', plan.batchId));
+  await env.DB.batch(statements);
+
+  return importPayload(plan, {
+    applied: true,
+    message: `Imported ${writes.length} account(s) from the ${plan.printedOn} statement.`,
+    wroteSnapshots: writes.length,
+    created: creates.length,
+    removed: removeMissing.length
+  });
+}
+
 async function audit(env, email, action, recordId = null, batchId = null) {
   await env.DB.prepare(`
     INSERT INTO admin_audit_log (admin_email, action, record_id, batch_id)
@@ -150,16 +356,19 @@ async function audit(env, email, action, recordId = null, batchId = null) {
 function recordSelect(where = '') {
   return `
     SELECT id, name, account_no, cif, date_of_opening, date_of_maturity, date_of_birth,
-           monthly_installment, created_at, updated_at, deleted_at,
+           monthly_installment, created_at, updated_at, deleted_at, needs_details,
            COALESCE((SELECT SUM(e.amount) FROM recurring_deposit_entries e
                      WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL), 0) AS manual_deposit_total,
-           (SELECT COUNT(*) FROM recurring_deposit_entries e
-            WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL) AS manual_deposit_count,
+           COALESCE((SELECT SUM(e.installment_count) FROM recurring_deposit_entries e
+                     WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL), 0) AS manual_deposit_count,
            (SELECT MAX(e.deposit_date) FROM recurring_deposit_entries e
             WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL) AS last_deposit_date,
            (SELECT e.batch_id FROM recurring_deposit_entries e
             WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL
-            ORDER BY e.id DESC LIMIT 1) AS last_deposit_batch_id
+            ORDER BY e.id DESC LIMIT 1) AS last_deposit_batch_id,
+           (SELECT e.source FROM recurring_deposit_entries e
+            WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL
+            ORDER BY e.id DESC LIMIT 1) AS last_deposit_source
     FROM recurring_deposits
     ${where}
   `;
@@ -219,13 +428,13 @@ async function updateRecord(request, env, email, id) {
   const existing = await getRecord(env, id);
   if (!existing) return null;
   const input = await readJson(request);
-  const values = validateRecord(input, existing);
+  const values = validateRecord(input, existing, Boolean(existing.needs_details));
   await env.DB.prepare(`
     UPDATE recurring_deposits
     SET name = ?, account_no = ?, cif = ?, date_of_opening = ?, date_of_maturity = ?,
-        date_of_birth = ?, monthly_installment = ?, updated_at = CURRENT_TIMESTAMP
+        date_of_birth = ?, monthly_installment = ?, needs_details = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).bind(values.name, values.accountNo, values.cif, values.dateOfOpening, values.dateOfMaturity, values.dateOfBirth, values.monthlyInstallment, id).run();
+  `).bind(values.name, values.accountNo, values.cif, values.dateOfOpening, values.dateOfMaturity, values.dateOfBirth, values.monthlyInstallment, values.needsDetails ? 1 : 0, id).run();
   await audit(env, email, 'update', id);
   return getRecord(env, id);
 }
@@ -278,11 +487,17 @@ async function createDepositBatch(request, env, email) {
   if (!depositDate || normalizedDateToIso(depositDate) > todayIso) throw new Error('Choose a valid deposit date that is not in the future.');
   const placeholders = ids.map(() => '?').join(',');
   const records = await env.DB.prepare(`
-    SELECT id, monthly_installment
+    SELECT id, monthly_installment,
+           EXISTS(SELECT 1 FROM recurring_deposit_entries e
+                  WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL AND e.source = 'pdf') AS has_pdf_balance
     FROM recurring_deposits
-    WHERE id IN (${placeholders}) AND deleted_at IS NULL
+    WHERE id IN (${placeholders}) AND deleted_at IS NULL AND needs_details = 0
   `).bind(...ids).all();
   if (!records.results?.length) throw new Error('No active records were found.');
+  const pdfBacked = records.results.filter((record) => record.has_pdf_balance).length;
+  if (pdfBacked) {
+    throw new Error(`${pdfBacked} selected record(s) already have a balance from a PDF import. Upload the latest PDF instead of adding a deposit.`);
+  }
   const batchId = crypto.randomUUID();
   const statements = records.results.map(record => env.DB.prepare(`
     INSERT INTO recurring_deposit_entries (record_id, amount, deposit_date, batch_id, created_by)
@@ -324,7 +539,7 @@ async function exportRecords(request, env, email) {
   const includeDeleted = url.searchParams.get('includeDeleted') === '1';
   const where = includeDeleted ? '' : 'WHERE deleted_at IS NULL';
   const result = await env.DB.prepare(`${recordSelect(where)} ORDER BY name COLLATE NOCASE, id`).all();
-  const header = ['Name', 'Account number', 'CIF', 'Date of birth', 'Opening date', 'Maturity date', 'Monthly installment', 'Manual deposits', 'Manual deposit count', 'Last deposit date'];
+  const header = ['Name', 'Account number', 'CIF', 'Date of birth', 'Opening date', 'Maturity date', 'Monthly installment', 'Needs details', 'Manual deposits', 'Manual deposit count', 'Last deposit date'];
   const lines = [header.map(csvCell).join(',')];
   for (const row of result.results || []) {
     lines.push([
@@ -335,6 +550,7 @@ async function exportRecords(request, env, email) {
       row.date_of_opening,
       row.date_of_maturity || '',
       row.monthly_installment,
+      row.needs_details ? 'Yes' : 'No',
       row.manual_deposit_total,
       row.manual_deposit_count,
       row.last_deposit_date || ''
@@ -385,6 +601,21 @@ async function handleAdminApi(request, env, ctx, url) {
       const message = error?.message || 'Could not create record.';
       const conflict = message.includes('UNIQUE');
       return jsonResponse(request, { code: conflict ? 'conflict' : 'invalid', error: conflict ? 'An account number and date of birth already exist.' : message }, conflict ? 409 : 400);
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/admin/import/pdf') {
+    try {
+      const { plan } = await buildImportPlan(request, env, url);
+      return jsonResponse(request, importPayload(plan));
+    } catch (error) {
+      return jsonResponse(request, { error: error?.message || 'Could not read the PDF.' }, 400);
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/admin/import/pdf/apply') {
+    try {
+      return jsonResponse(request, await applyPdfImport(request, env, email, url));
+    } catch (error) {
+      return jsonResponse(request, { error: error?.message || 'Could not import the PDF.' }, 400);
     }
   }
   if (request.method === 'GET' && url.pathname === '/api/admin/export') {
@@ -483,12 +714,15 @@ export default {
         SELECT name, account_no, cif, date_of_opening, date_of_maturity, date_of_birth, monthly_installment,
                COALESCE((SELECT SUM(e.amount) FROM recurring_deposit_entries e
                          WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL), 0) AS manual_deposit_total,
-               (SELECT COUNT(*) FROM recurring_deposit_entries e
-                WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL) AS manual_deposit_count,
+               COALESCE((SELECT SUM(e.installment_count) FROM recurring_deposit_entries e
+                         WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL), 0) AS manual_deposit_count,
                (SELECT MAX(e.deposit_date) FROM recurring_deposit_entries e
-                WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL) AS last_deposit_date
+                WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL) AS last_deposit_date,
+               (SELECT e.source FROM recurring_deposit_entries e
+                WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL
+                ORDER BY e.id DESC LIMIT 1) AS last_deposit_source
         FROM recurring_deposits
-        WHERE account_no = ? AND date_of_birth = ? AND deleted_at IS NULL
+        WHERE account_no = ? AND date_of_birth = ? AND deleted_at IS NULL AND needs_details = 0
         LIMIT 1
       `).bind(accountNo, dateOfBirth).first();
       if (!record) return jsonResponse(request, { code: 'not-found', error: 'No matching recurring deposit was found.' }, 404);

@@ -73,6 +73,8 @@ export function publicRecord(record, asOf = new Date()) {
   const storedMaturity = normalizeDate(maturityValue);
   const maturity = storedMaturity || (opening ? addYears(opening, 5).toISOString().slice(0, 10).split('-').reverse().join('-') : '');
   const manualDate = record.lastDepositDate ?? record.last_deposit_date;
+  const balanceSource = String(record.balanceSource ?? record.last_deposit_source ?? (hasManualDeposits ? 'manual' : ''));
+  const depositSource = hasManualDeposits ? (balanceSource || 'manual') : 'estimate';
   return {
     name: record.name ?? '',
     accountNo: maskAccount(record.accountNo ?? record.account_no),
@@ -84,7 +86,7 @@ export function publicRecord(record, asOf = new Date()) {
     monthlyInstallment: estimate.monthlyInstallment,
     completedInstallments: hasManualDeposits ? manualCount : estimate.installments,
     estimatedDeposit: hasManualDeposits ? (Number.isFinite(manualTotal) ? manualTotal : 0) : estimate.estimatedDeposit,
-    depositSource: hasManualDeposits ? 'manual' : 'estimate',
+    depositSource,
     asOf: hasManualDeposits ? (normalizeDate(manualDate) || asOf.toISOString().slice(0, 10)) : asOf.toISOString().slice(0, 10)
   };
 }

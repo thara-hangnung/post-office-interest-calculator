@@ -91,6 +91,11 @@
     .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
     .form-grid .full { grid-column: 1 / -1; }
     .form-actions { display: flex; justify-content: end; gap: 8px; margin-top: 20px; }
+    .import-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .import-stat { display: flex; flex-direction: column; gap: 2px; padding: 9px 11px; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px; }
+    .import-problems p { margin: 0 0 6px; font-size: 12px; }
+    .import-problems p.error { color: var(--red); font-weight: 700; }
+    .import-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 2px 14px; margin-top: 6px; max-height: 190px; overflow: auto; }
     @media (max-width: 760px) {
       .topbar, .toolbar { align-items: stretch; flex-direction: column; }
       .access { text-align: left; }
@@ -133,11 +138,24 @@
         <span class="bulk-summary" id="selectedCount">0 selected</span>
         <button class="button" id="refresh" type="button">Refresh</button>
         <button class="button" id="export" type="button">Export CSV</button>
+        <button class="button" id="importPdf" type="button">Import PDF</button>
+        <input id="pdfFile" type="file" accept="application/pdf,.pdf" hidden>
         <button class="button primary" id="newRecord" type="button">New record</button>
       </div>
     </section>
 
     <p class="status" id="status" role="status" aria-live="polite"></p>
+
+    <section class="card" id="importPanel" hidden>
+      <div class="section-head"><h2>PDF import preview</h2><span class="subvalue" id="importStatement"></span></div>
+      <div class="import-summary" id="importSummary"></div>
+      <div class="import-problems" id="importProblems"></div>
+      <div id="importMissing"></div>
+      <div class="form-actions">
+        <button class="button" id="cancelImport" type="button">Cancel</button>
+        <button class="button primary" id="applyImport" type="button">Apply import</button>
+      </div>
+    </section>
 
     <section class="stats">
       <div class="card stat"><span>Total records</span><strong id="totalRecords">—</strong></div>
@@ -204,6 +222,20 @@
     const selectAll = document.getElementById('selectAll');
     const adminEmail = document.getElementById('adminEmail');
     const accessStatus = document.getElementById('accessStatus');
+    const importPanel = document.getElementById('importPanel');
+    const importSummary = document.getElementById('importSummary');
+    const importProblems = document.getElementById('importProblems');
+    const importMissing = document.getElementById('importMissing');
+    const importStatement = document.getElementById('importStatement');
+    const applyImportButton = document.getElementById('applyImport');
+    let pendingImport = null;
+
+    const WARNING_TEXT = {
+      'opening-date-missing': 'Some accounts have no derivable opening date; it was left blank for manual entry.',
+      'opening-date-fallback': 'Some accounts have no next-due date, so the opening date already on file was kept.',
+      'no-installments-yet': 'Some accounts have no paid installments yet, so no dates were derived for them.',
+      'no-next-due-date': 'Some accounts have no next-due date in the statement.'
+    };
 
     function setStatus(message, isError = false) {
       statusBox.textContent = message;
@@ -223,6 +255,110 @@
         throw error;
       }
       return data;
+    }
+
+    async function postPdf(path, file) {
+      const response = await fetch(path, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/pdf' },
+        body: file
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'The PDF could not be read.');
+      return data;
+    }
+
+    function closeImport() {
+      pendingImport = null;
+      importPanel.hidden = true;
+      importSummary.replaceChildren();
+      importProblems.replaceChildren();
+      importMissing.replaceChildren();
+      document.getElementById('pdfFile').value = '';
+    }
+
+    function renderImportPreview(data, file) {
+      pendingImport = { file, data };
+      importPanel.hidden = false;
+      importStatement.textContent = `Statement dated ${data.printedOn || 'unknown'}`;
+      importSummary.replaceChildren();
+      const stats = [
+        ['Rows in PDF', data.counts.rows],
+        ['New accounts', data.counts.created],
+        ['Reactivated', data.counts.restored],
+        ['Updated', data.counts.updated],
+        ['Unchanged', data.counts.unchanged],
+        ['Name changes', data.counts.nameChanges],
+        ['Installment changes', data.counts.installmentChanges],
+        ['Balance increases', data.counts.increases],
+        ['Balance decreases', data.counts.decreases],
+        ['Wrapped names', data.counts.wrappedNames],
+        ['Not in this PDF', data.counts.missing]
+      ];
+      for (const [label, value] of stats) {
+        const cell = element('div', 'import-stat');
+        cell.append(element('span', 'subvalue', label), element('strong', '', String(value)));
+        importSummary.append(cell);
+      }
+      const totals = element('div', 'import-stat');
+      totals.append(element('span', 'subvalue', 'Recorded principal'), element('strong', '', `${money(data.totals.before)} \u2192 ${money(data.totals.after)}`));
+      importSummary.append(totals);
+
+      importProblems.replaceChildren();
+      const blocked = data.problems.some(problem => problem.level === 'error');
+      for (const problem of data.problems) importProblems.append(element('p', problem.level === 'error' ? 'error' : '', problem.message));
+      for (const warning of data.warnings) {
+        if (WARNING_TEXT[warning]) importProblems.append(element('p', 'subvalue', WARNING_TEXT[warning]));
+      }
+
+      importMissing.replaceChildren();
+      if (data.missing.length) {
+        importMissing.append(element('p', 'subvalue', 'These accounts are in the database but not in this statement. Tick any to remove them from lookup \u2014 they stay restorable.'));
+        const grid = element('div', 'import-grid');
+        for (const record of data.missing) {
+          const label = element('label', 'check');
+          const box = element('input');
+          box.type = 'checkbox';
+          box.value = String(record.id);
+          label.append(box, element('span', '', `${record.name} \u00b7 ${record.accountNo}`));
+          grid.append(label);
+        }
+        importMissing.append(grid);
+      }
+      applyImportButton.disabled = blocked;
+      setStatus(blocked ? 'Resolve the problems above before applying this statement.' : 'Review the summary, then apply.');
+    }
+
+    async function previewImport(file) {
+      setStatus('Reading the PDF statement\u2026');
+      try {
+        renderImportPreview(await postPdf('/api/admin/import/pdf', file), file);
+      } catch (error) {
+        closeImport();
+        setStatus(error.message, true);
+      }
+    }
+
+    async function applyImport() {
+      if (!pendingImport) return;
+      applyImportButton.disabled = true;
+      setStatus('Applying the statement\u2026');
+      const params = new URLSearchParams();
+      if (pendingImport.data.counts.decreases) params.set('allowDecrease', '1');
+      const ticked = [...importMissing.querySelectorAll('input[type="checkbox"]:checked')].map(box => box.value);
+      if (ticked.length) params.set('removeMissing', ticked.join(','));
+      try {
+        const query = params.toString();
+        const result = await postPdf(`/api/admin/import/pdf/apply${query ? `?${query}` : ''}`, pendingImport.file);
+        closeImport();
+        setStatus(result.message || 'Statement applied.');
+        await Promise.all([loadRecords(), loadAudit()]);
+      } catch (error) {
+        setStatus(error.message, true);
+      } finally {
+        applyImportButton.disabled = false;
+      }
     }
 
     function money(value) {
@@ -266,7 +402,9 @@
       document.getElementById('pageSummary').textContent = `Showing ${data.records.length} of ${data.total} records`;
       document.getElementById('previous').disabled = data.page <= 1;
       document.getElementById('next').disabled = data.page * data.pageSize >= data.total;
-      state.visibleIds = data.records.filter(record => !record.deletedAt).map(record => record.id);
+      state.visibleIds = data.records
+        .filter(record => !record.deletedAt && !record.needsDetails && record.balanceSource !== 'pdf')
+        .map(record => record.id);
       if (!data.records.length) {
         const row = element('tr');
         const cell = element('td', 'empty', 'No records found.');
@@ -283,7 +421,9 @@
         const checkbox = element('input');
         checkbox.type = 'checkbox';
         checkbox.checked = state.selectedIds.has(record.id);
-        checkbox.disabled = Boolean(record.deletedAt);
+        const pdfBacked = record.balanceSource === 'pdf';
+        checkbox.disabled = Boolean(record.deletedAt || record.needsDetails || pdfBacked);
+        checkbox.title = pdfBacked ? 'Balance comes from the latest PDF statement' : '';
         checkbox.setAttribute('aria-label', `Select ${record.name}`);
         checkbox.addEventListener('change', event => setSelected(record.id, event.target.checked));
         selectCell.append(checkbox);
@@ -301,17 +441,19 @@
         const deposited = element('td');
         if (record.manualDepositCount) {
           deposited.append(element('span', 'person', money(record.manualDepositTotal)));
-          deposited.append(element('span', 'subvalue', `${record.manualDepositCount} recorded · ${record.lastDepositDate || 'no date'}`));
+          deposited.append(element('span', 'subvalue', pdfBacked
+            ? `PDF statement · ${record.manualDepositCount} paid · ${record.lastDepositDate || 'no date'}`
+            : `${record.manualDepositCount} recorded · ${record.lastDepositDate || 'no date'}`));
         } else {
-          deposited.append(element('span', 'subvalue', 'No manual deposits'));
+          deposited.append(element('span', 'subvalue', 'No deposits recorded'));
         }
         const status = element('td');
-        status.append(record.deletedAt ? element('span', 'badge', 'Deleted') : element('span', 'subvalue', 'Active'));
+        status.append(record.deletedAt ? element('span', 'badge', 'Deleted') : record.needsDetails ? element('span', 'badge', 'Needs details') : element('span', 'subvalue', 'Active'));
         const actions = element('td', 'row-actions');
         if (!record.deletedAt) {
           actions.append(actionButton('Edit', () => openForm(record)));
           actions.append(actionButton('Delete', () => removeRecord(record), 'danger'));
-          if (record.lastDepositBatchId) actions.append(actionButton('Undo deposit', () => reverseDeposit(record)));
+          if (!record.needsDetails && record.lastDepositBatchId) actions.append(actionButton('Undo deposit', () => reverseDeposit(record)));
         } else {
           actions.append(actionButton('Restore', () => restoreRecord(record)));
         }
@@ -461,6 +603,13 @@
     });
     document.getElementById('refresh').addEventListener('click', () => { state.selectedIds.clear(); Promise.all([loadRecords(), loadAudit()]); });
     document.getElementById('export').addEventListener('click', exportCsv);
+    document.getElementById('importPdf').addEventListener('click', () => document.getElementById('pdfFile').click());
+    document.getElementById('pdfFile').addEventListener('change', event => {
+      const file = event.target.files?.[0];
+      if (file) previewImport(file);
+    });
+    document.getElementById('cancelImport').addEventListener('click', () => { closeImport(); setStatus(''); });
+    document.getElementById('applyImport').addEventListener('click', applyImport);
     document.getElementById('newRecord').addEventListener('click', () => openForm());
     document.getElementById('markDeposits').addEventListener('click', openDepositModal);
     document.getElementById('closeDepositModal').addEventListener('click', closeDepositModal);

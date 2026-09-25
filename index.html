@@ -1694,10 +1694,13 @@
       lookupMaturity.textContent = data.dateOfMaturity || 'Not recorded';
       lookupMonthly.textContent = money(data.monthlyInstallment);
       lookupInstallments.textContent = `${data.completedInstallments} installments`;
-      lookupEstimateLabel.textContent = data.depositSource === 'manual' ? 'Manually recorded principal' : 'Estimated principal deposited';
+      const fromStatement = data.depositSource === 'pdf';
+      lookupEstimateLabel.textContent = fromStatement ? 'Principal per statement' : data.depositSource === 'manual' ? 'Manually recorded principal' : 'Estimated principal deposited';
       lookupEstimated.textContent = money(data.estimatedDeposit);
       lookupAsOf.textContent = data.asOf;
-      lookupNote.textContent = data.depositSource === 'manual'
+      lookupNote.textContent = fromStatement
+        ? `The ${data.asOf} statement shows ${data.completedInstallments} paid installments.`
+        : data.depositSource === 'manual'
         ? `Manually recorded deposits total ${data.completedInstallments} installments through ${data.asOf}.`
         : `Date-based estimate uses ${data.completedInstallments} monthly installments due through ${data.asOf}; it is not a transaction balance.`;
       lookupResult.hidden = false;
