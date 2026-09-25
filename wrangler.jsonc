@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "post-office-rd-lookup",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-09-25",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rd-data",
+      "database_id": "3f1dc72a-67a5-4448-9f06-e168bb14a5ba"
+    }
+  ]
+}

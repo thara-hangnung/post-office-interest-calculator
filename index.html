@@ -1061,7 +1061,7 @@
     }
 
     @media print {
-      .hero, .controls-card, .install-popup { display: none !important; }
+      .hero, .controls-card, .lookup-card, .install-popup { display: none !important; }
       .layout { display: block; }
       .result-card, .rates-card { padding: 16px; border-radius: 0; box-shadow: none; }
       .result-card { color: var(--ink); background: #fff; border: 1px solid #d7dde0; }
@@ -1173,6 +1173,148 @@
       .layout { gap: 12px; }
       h1 { font-size: clamp(1.1rem, 5.6vw, 1.8rem); }
     }
+    .lookup-card {
+      padding: 20px;
+    }
+
+    .lookup-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 18px;
+    }
+
+    .lookup-heading h2 {
+      margin: 0 0 5px;
+      font-size: 20px;
+      letter-spacing: -.04em;
+    }
+
+    .lookup-heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .lookup-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .lookup-card .control {
+      margin-bottom: 14px;
+    }
+
+    .lookup-card input[type="text"] {
+      width: 100%;
+      min-height: 46px;
+      padding: 12px 13px;
+      color: var(--ink);
+      background: #fbfaf7;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      outline: 0;
+      font: inherit;
+      font-size: 16px;
+    }
+
+    .lookup-card input[type="text"]:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(8, 127, 120, .12);
+    }
+
+    .lookup-card > form > .primary {
+      width: 100%;
+    }
+
+    .lookup-card > form > .primary:disabled {
+      opacity: .65;
+      cursor: wait;
+    }
+
+    .lookup-result {
+      margin-top: 16px;
+      padding: 16px;
+      background: #f3f8f6;
+      border: 1px solid #d7e9e4;
+      border-radius: 12px;
+    }
+
+    .lookup-result-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .lookup-result-head strong {
+      color: var(--ink);
+      font-size: 18px;
+      letter-spacing: -.03em;
+    }
+
+    .lookup-account {
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .lookup-details {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 16px 0 0;
+    }
+
+    .lookup-detail {
+      min-width: 0;
+    }
+
+    .lookup-detail dt {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .lookup-detail dd {
+      margin: 4px 0 0;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .lookup-estimate {
+      grid-column: 1 / -1;
+      padding-top: 12px;
+      border-top: 1px solid #d7e9e4;
+    }
+
+    .lookup-estimate dd {
+      color: var(--teal);
+      font-size: 22px;
+    }
+
+    .lookup-note {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    @media screen and (max-width: 560px) {
+      .lookup-card { padding: 16px; }
+      .lookup-grid, .lookup-details { grid-template-columns: 1fr; }
+      .lookup-result-head { align-items: flex-start; flex-direction: column; }
+      .lookup-account { white-space: normal; }
+    }
+
   </style>
 </head>
 <body>
@@ -1281,6 +1423,71 @@
         <div class="legend"><span><i class="invested-dot"></i>Invested</span><span><i class="interest-dot"></i>Interest</span></div>
         <p class="result-note" id="resultNote"></p>
       </aside>
+
+      <section class="card lookup-card" aria-labelledby="lookupTitle">
+        <div class="lookup-heading">
+          <div>
+            <h2 id="lookupTitle">Find your recurring deposit</h2>
+            <p>Enter the account number and date of birth recorded with the RD.</p>
+          </div>
+          <span class="step" aria-hidden="true">2</span>
+        </div>
+        <form id="lookupForm" novalidate>
+          <div class="lookup-grid">
+            <div class="control">
+              <label class="control-label" for="lookupAccountNo">Account number</label>
+              <input id="lookupAccountNo" name="accountNo" type="text" inputmode="numeric" autocomplete="off" maxlength="32" required>
+            </div>
+            <div class="control">
+              <label class="control-label" for="lookupDateOfBirth">Date of birth</label>
+              <input id="lookupDateOfBirth" name="dateOfBirth" type="text" inputmode="numeric" placeholder="DD-MM-YYYY" autocomplete="off" maxlength="10" required>
+            </div>
+          </div>
+          <button class="primary" id="lookupSubmit" type="submit">Look up deposit</button>
+          <div class="error" id="lookupError" role="alert" hidden></div>
+          <div class="lookup-result" id="lookupResult" aria-live="polite" hidden>
+            <div class="lookup-result-head">
+              <strong id="lookupName"></strong>
+              <span class="lookup-account" id="lookupAccount"></span>
+            </div>
+            <dl class="lookup-details">
+              <div class="lookup-detail">
+                <dt>CIF</dt>
+                <dd id="lookupCif">—</dd>
+              </div>
+              <div class="lookup-detail">
+                <dt>Date of birth</dt>
+                <dd id="lookupDob">—</dd>
+              </div>
+              <div class="lookup-detail">
+                <dt>Opening date</dt>
+                <dd id="lookupOpening">—</dd>
+              </div>
+              <div class="lookup-detail">
+                <dt id="lookupMaturityLabel">Maturity</dt>
+                <dd id="lookupMaturity">—</dd>
+              </div>
+              <div class="lookup-detail">
+                <dt>Monthly installment</dt>
+                <dd id="lookupMonthly">—</dd>
+              </div>
+              <div class="lookup-detail">
+                <dt>Installments counted</dt>
+                <dd id="lookupInstallments">—</dd>
+              </div>
+              <div class="lookup-detail lookup-estimate">
+                <dt>Estimated principal deposited</dt>
+                <dd id="lookupEstimated">—</dd>
+              </div>
+              <div class="lookup-detail">
+                <dt>Estimate as of</dt>
+                <dd id="lookupAsOf">—</dd>
+              </div>
+            </dl>
+            <p class="lookup-note" id="lookupNote"></p>
+          </div>
+        </form>
+      </section>
     </section>
 
   </main>
@@ -1383,6 +1590,25 @@
     const yearsHint = document.getElementById('yearsHint');
     const yearsMin = document.getElementById('yearsMin');
     const yearsMax = document.getElementById('yearsMax');
+    const lookupForm = document.getElementById('lookupForm');
+    const lookupAccountNo = document.getElementById('lookupAccountNo');
+    const lookupDateOfBirth = document.getElementById('lookupDateOfBirth');
+    const lookupSubmit = document.getElementById('lookupSubmit');
+    const lookupError = document.getElementById('lookupError');
+    const lookupResult = document.getElementById('lookupResult');
+    const lookupName = document.getElementById('lookupName');
+    const lookupAccount = document.getElementById('lookupAccount');
+    const lookupCif = document.getElementById('lookupCif');
+    const lookupDob = document.getElementById('lookupDob');
+    const lookupOpening = document.getElementById('lookupOpening');
+    const lookupMaturityLabel = document.getElementById('lookupMaturityLabel');
+    const lookupMaturity = document.getElementById('lookupMaturity');
+    const lookupMonthly = document.getElementById('lookupMonthly');
+    const lookupInstallments = document.getElementById('lookupInstallments');
+    const lookupEstimated = document.getElementById('lookupEstimated');
+    const lookupAsOf = document.getElementById('lookupAsOf');
+    const lookupNote = document.getElementById('lookupNote');
+    const LOOKUP_API_URL = 'https://post-office-rd-lookup.tharahangnung.workers.dev/api/lookup';
     const errorBox = document.getElementById('error');
     const ratePill = document.getElementById('ratePill');
     const resultScheme = document.getElementById('resultScheme');
@@ -1426,6 +1652,51 @@
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
       }).format(Math.max(0, value));
+    }
+
+    async function requestLookup(accountNo, dateOfBirth) {
+      const response = await fetch(LOOKUP_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountNo, dateOfBirth })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(data.error || 'Lookup failed');
+        error.code = data.code || 'server';
+        throw error;
+      }
+      return data;
+    }
+
+    function lookupErrorMessage(error) {
+      if (error?.message === 'lookup-input-invalid') return 'Enter an account number and date of birth.';
+      if (error?.code === 'not-found') return 'No matching recurring deposit was found.';
+      if (error?.code === 'invalid') return 'Enter a valid account number and date of birth.';
+      if (error?.code === 'rate-limit') return 'Too many attempts. Please try again later.';
+      if (error?.code === 'server') return 'Lookup service is temporarily unavailable.';
+      return 'We could not complete the lookup. Check your connection and try again.';
+    }
+
+    function clearLookupResult() {
+      lookupResult.hidden = true;
+      lookupError.hidden = true;
+    }
+
+    function renderLookupResult(data) {
+      lookupName.textContent = data.name;
+      lookupAccount.textContent = `Account ${data.accountNo}`;
+      lookupCif.textContent = data.cif;
+      lookupDob.textContent = data.dateOfBirth;
+      lookupOpening.textContent = data.dateOfOpening;
+      lookupMaturityLabel.textContent = data.maturityEstimated ? 'Maturity (estimated)' : 'Maturity';
+      lookupMaturity.textContent = data.dateOfMaturity || 'Not recorded';
+      lookupMonthly.textContent = money(data.monthlyInstallment);
+      lookupInstallments.textContent = `${data.completedInstallments} installments`;
+      lookupEstimated.textContent = money(data.estimatedDeposit);
+      lookupAsOf.textContent = data.asOf;
+      lookupNote.textContent = `Estimate uses ${data.completedInstallments} monthly installments due through ${data.asOf}; it is not a transaction balance.`;
+      lookupResult.hidden = false;
     }
 
     function rateText(rate) {
@@ -1846,6 +2117,30 @@
     form.addEventListener('submit', event => {
       event.preventDefault();
       render();
+    });
+
+    lookupForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      clearLookupResult();
+      lookupSubmit.disabled = true;
+      lookupSubmit.textContent = 'Looking up…';
+      const accountNo = lookupAccountNo.value.replace(/\s+/g, '');
+      const dateOfBirth = lookupDateOfBirth.value.trim();
+      try {
+        if (!accountNo || !dateOfBirth) throw new Error('lookup-input-invalid');
+        const data = await requestLookup(accountNo, dateOfBirth);
+        renderLookupResult(data);
+      } catch (error) {
+        lookupError.textContent = lookupErrorMessage(error);
+        lookupError.hidden = false;
+      } finally {
+        lookupSubmit.disabled = false;
+        lookupSubmit.textContent = 'Look up deposit';
+      }
+    });
+
+    [lookupAccountNo, lookupDateOfBirth].forEach(input => {
+      input.addEventListener('input', clearLookupResult);
     });
 
     window.addEventListener('beforeinstallprompt', event => {

@@ -1,0 +1,7 @@
+node_modules/
+.wrangler/
+worker/.wrangler/
+.dev.vars
+passbook_backup_*.json
+recurring_deposit_customers.json
+worker/seed.sql
