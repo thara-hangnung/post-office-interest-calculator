@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>RD Administration</title>
+  <style>
+    :root {
+      --ink: #173142;
+      --muted: #687984;
+      --paper: #f6f3ee;
+      --card: #fffefa;
+      --line: #e3ddd4;
+      --orange: #e9683b;
+      --orange-dark: #c6502a;
+      --teal: #087f78;
+      --red: #a33c2a;
+      --shadow: 0 14px 36px rgba(22, 54, 74, .09);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { width: min(1180px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 48px; }
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { display: grid; width: 42px; height: 42px; place-items: center; color: #fff; background: var(--orange); border-radius: 13px 13px 13px 4px; font-size: 13px; font-weight: 900; letter-spacing: -.08em; }
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 4px; font-size: clamp(25px, 4vw, 38px); letter-spacing: -.055em; }
+    .subtitle { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+    .access { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; text-align: right; }
+    .access strong { display: block; color: var(--ink); font-size: 13px; }
+    .card { background: var(--card); border: 1px solid rgba(23, 49, 66, .07); border-radius: 18px; box-shadow: var(--shadow); }
+    .toolbar { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-bottom: 16px; padding: 16px; }
+    .search { display: flex; flex: 1; align-items: end; gap: 9px; }
+    .field { display: grid; gap: 6px; min-width: 0; }
+    .field label { color: var(--muted); font-size: 11px; font-weight: 800; }
+    .field input { width: 100%; min-height: 42px; padding: 10px 12px; color: var(--ink); background: #fbfaf7; border: 1px solid var(--line); border-radius: 10px; outline: 0; }
+    .field input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(8, 127, 120, .12); }
+    .search .field { flex: 1; }
+    .check { display: flex; align-items: center; gap: 7px; min-height: 42px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .check input { accent-color: var(--teal); }
+    .actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
+    .button { min-height: 40px; padding: 10px 13px; color: var(--ink); background: #fff; border: 1px solid #b8cbd1; border-radius: 10px; font-size: 12px; font-weight: 800; }
+    .button:hover { background: #edf5f6; }
+    .button.primary { color: #fff; background: var(--orange); border-color: var(--orange); }
+    .button.primary:hover { background: var(--orange-dark); }
+    .button.danger { color: var(--red); border-color: #e5b9ae; }
+    .button.small { min-height: 32px; padding: 6px 9px; font-size: 11px; }
+    .status { min-height: 22px; margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+    .status.error { color: var(--red); }
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .stat { padding: 15px 16px; }
+    .stat span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+    .stat strong { display: block; margin-top: 6px; color: var(--teal); font-size: 25px; letter-spacing: -.04em; }
+    .table-card { overflow: hidden; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 950px; border-collapse: collapse; }
+    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { color: var(--muted); background: #fbfaf7; font-size: 10px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+    td { font-size: 13px; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr.deleted { background: #fff7f4; }
+    .person { font-weight: 850; }
+    .subvalue { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .badge { display: inline-flex; padding: 4px 7px; color: var(--red); background: #fff0eb; border-radius: 999px; font-size: 10px; font-weight: 850; }
+    .row-actions { display: flex; gap: 6px; white-space: nowrap; }
+    .empty { padding: 36px 15px; color: var(--muted); text-align: center; }
+    .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 15px; border-top: 1px solid var(--line); }
+    .pager span { color: var(--muted); font-size: 12px; }
+    .audit { margin-top: 16px; padding: 16px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .section-head h2 { margin-bottom: 0; font-size: 17px; letter-spacing: -.035em; }
+    .audit-list { display: grid; gap: 7px; }
+    .audit-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; background: #f8faf9; border-radius: 9px; font-size: 12px; }
+    .audit-row span { color: var(--muted); }
+    .modal { position: fixed; z-index: 10; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(16, 47, 66, .55); }
+    .modal[hidden] { display: none; }
+    .modal-card { width: min(680px, 100%); max-height: min(760px, calc(100vh - 36px)); overflow: auto; padding: 22px; background: var(--card); border-radius: 18px; box-shadow: 0 24px 70px rgba(16, 47, 66, .28); }
+    .modal-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .modal-head h2 { margin-bottom: 4px; font-size: 22px; letter-spacing: -.045em; }
+    .modal-head p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
+    .close { width: 32px; height: 32px; color: var(--muted); background: transparent; border: 0; border-radius: 50%; font-size: 22px; }
+    .close:hover { color: var(--ink); background: #f0f3f1; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .form-actions { display: flex; justify-content: end; gap: 8px; margin-top: 20px; }
+    @media (max-width: 760px) {
+      .topbar, .toolbar { align-items: stretch; flex-direction: column; }
+      .access { text-align: left; }
+      .search { align-items: stretch; flex-direction: column; }
+      .actions { justify-content: stretch; }
+      .actions .button { flex: 1; }
+      .stats { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid .full { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">RD</span>
+        <div>
+          <h1>RD Administration</h1>
+          <p class="subtitle">Secure recurring-deposit record management</p>
+        </div>
+      </div>
+      <div class="access">
+        <div><strong id="adminEmail">Checking access…</strong><span id="accessStatus">Cloudflare Access</span></div>
+        <button class="button small" id="signOut" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <section class="toolbar card">
+      <form class="search" id="searchForm">
+        <div class="field">
+          <label for="searchInput">Search records</label>
+          <input id="searchInput" type="search" placeholder="Name, account number, or CIF">
+        </div>
+        <label class="check"><input id="includeDeleted" type="checkbox"> Show deleted</label>
+        <button class="button" type="submit">Search</button>
+      </form>
+      <div class="actions">
+        <button class="button" id="refresh" type="button">Refresh</button>
+        <button class="button" id="export" type="button">Export CSV</button>
+        <button class="button primary" id="newRecord" type="button">New record</button>
+      </div>
+    </section>
+
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+
+    <section class="stats">
+      <div class="card stat"><span>Total records</span><strong id="totalRecords">—</strong></div>
+      <div class="card stat"><span>Monthly installments</span><strong id="monthlyTotal">—</strong></div>
+      <div class="card stat"><span>Page</span><strong id="pageNumber">—</strong></div>
+    </section>
+
+    <section class="card table-card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Customer</th><th>Account / CIF</th><th>Dates</th><th>Monthly</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="recordsBody"><tr><td class="empty" colspan="6">Loading records…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pager"><span id="pageSummary">—</span><div class="actions"><button class="button small" id="previous" type="button">Previous</button><button class="button small" id="next" type="button">Next</button></div></div>
+    </section>
+
+    <section class="card audit">
+      <div class="section-head"><h2>Recent administrator activity</h2><span class="subvalue">Last 100 events</span></div>
+      <div class="audit-list" id="auditList"><div class="empty">Loading activity…</div></div>
+    </section>
+  </main>
+
+  <div class="modal" id="formModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+      <div class="modal-head"><div><h2 id="formTitle">New recurring deposit</h2><p>All fields marked required must be valid.</p></div><button class="close" id="closeModal" type="button" aria-label="Close">×</button></div>
+      <form id="recordForm">
+        <div class="form-grid">
+          <div class="field full"><label for="formName">Name</label><input id="formName" name="name" maxlength="200" required></div>
+          <div class="field"><label for="formAccountNo">Account number</label><input id="formAccountNo" name="accountNo" inputmode="numeric" maxlength="20" required></div>
+          <div class="field"><label for="formCif">CIF</label><input id="formCif" name="cif" maxlength="32" required></div>
+          <div class="field"><label for="formDob">Date of birth</label><input id="formDob" name="dateOfBirth" placeholder="DD-MM-YYYY" maxlength="10" required></div>
+          <div class="field"><label for="formOpening">Opening date</label><input id="formOpening" name="dateOfOpening" placeholder="DD-MM-YYYY" maxlength="10" required></div>
+          <div class="field"><label for="formMaturity">Maturity date</label><input id="formMaturity" name="dateOfMaturity" placeholder="DD-MM-YYYY" maxlength="10"></div>
+          <div class="field"><label for="formMonthly">Monthly installment</label><input id="formMonthly" name="monthlyInstallment" type="number" min="0" step="0.01" required></div>
+        </div>
+        <div class="form-actions"><button class="button" id="cancelModal" type="button">Cancel</button><button class="button primary" type="submit">Save record</button></div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const state = { page: 1, pageSize: 25, query: '', includeDeleted: false, editingId: null };
+    const recordsBody = document.getElementById('recordsBody');
+    const statusBox = document.getElementById('status');
+    const formModal = document.getElementById('formModal');
+    const recordForm = document.getElementById('recordForm');
+    const adminEmail = document.getElementById('adminEmail');
+    const accessStatus = document.getElementById('accessStatus');
+
+    function setStatus(message, isError = false) {
+      statusBox.textContent = message;
+      statusBox.classList.toggle('error', isError);
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        credentials: 'same-origin',
+        ...options,
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(data.error || 'Request failed.');
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    }
+
+    function money(value) {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(value) || 0);
+    }
+
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function actionButton(label, handler, className = '') {
+      const button = element('button', `button small ${className}`.trim(), label);
+      button.type = 'button';
+      button.addEventListener('click', handler);
+      return button;
+    }
+
+    function renderRecords(data) {
+      recordsBody.replaceChildren();
+      document.getElementById('totalRecords').textContent = data.total;
+      document.getElementById('pageNumber').textContent = data.page;
+      const monthlyTotal = data.records.reduce((sum, record) => sum + Number(record.monthlyInstallment || 0), 0);
+      document.getElementById('monthlyTotal').textContent = money(monthlyTotal);
+      document.getElementById('pageSummary').textContent = `Showing ${data.records.length} of ${data.total} records`;
+      document.getElementById('previous').disabled = data.page <= 1;
+      document.getElementById('next').disabled = data.page * data.pageSize >= data.total;
+      if (!data.records.length) {
+        const row = element('tr');
+        const cell = element('td', 'empty', 'No records found.');
+        cell.colSpan = 6;
+        row.append(cell);
+        recordsBody.append(row);
+        return;
+      }
+      for (const record of data.records) {
+        const row = element('tr', record.deletedAt ? 'deleted' : '');
+        const customer = element('td');
+        customer.append(element('span', 'person', record.name));
+        if (record.deletedAt) customer.append(element('span', 'subvalue', 'Deleted record'));
+        const account = element('td');
+        account.append(element('span', 'person', record.accountNo));
+        account.append(element('span', 'subvalue', `CIF ${record.cif}`));
+        const dates = element('td');
+        dates.append(element('span', '', `DOB ${record.dateOfBirth}`));
+        dates.append(element('span', 'subvalue', `Opened ${record.dateOfOpening}`));
+        dates.append(element('span', 'subvalue', `Maturity ${record.dateOfMaturity || 'Not recorded'}`));
+        const monthly = element('td', 'person', money(record.monthlyInstallment));
+        const status = element('td');
+        status.append(record.deletedAt ? element('span', 'badge', 'Deleted') : element('span', 'subvalue', 'Active'));
+        const actions = element('td', 'row-actions');
+        if (!record.deletedAt) {
+          actions.append(actionButton('Edit', () => openForm(record)));
+          actions.append(actionButton('Delete', () => removeRecord(record), 'danger'));
+        } else {
+          actions.append(actionButton('Restore', () => restoreRecord(record)));
+        }
+        row.append(customer, account, dates, monthly, status, actions);
+        recordsBody.append(row);
+      }
+    }
+
+    async function loadRecords() {
+      setStatus('Loading records…');
+      try {
+        const params = new URLSearchParams({ page: state.page, pageSize: state.pageSize });
+        if (state.query) params.set('q', state.query);
+        if (state.includeDeleted) params.set('includeDeleted', '1');
+        renderRecords(await api(`/api/admin/records?${params}`));
+        setStatus('');
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    async function loadAudit() {
+      try {
+        const data = await api('/api/admin/audit');
+        const list = document.getElementById('auditList');
+        list.replaceChildren();
+        if (!data.entries.length) {
+          list.append(element('div', 'empty', 'No activity yet.'));
+          return;
+        }
+        for (const entry of data.entries.slice(0, 12)) {
+          const row = element('div', 'audit-row');
+          row.append(element('strong', '', `${entry.action} ${entry.record_id ? `#${entry.record_id}` : ''}`));
+          row.append(element('span', '', `${entry.admin_email} · ${entry.created_at}`));
+          list.append(row);
+        }
+      } catch (error) {
+        document.getElementById('auditList').replaceChildren(element('div', 'empty', error.message));
+      }
+    }
+
+    function openForm(record = null) {
+      state.editingId = record?.id || null;
+      document.getElementById('formTitle').textContent = record ? 'Edit recurring deposit' : 'New recurring deposit';
+      document.getElementById('formName').value = record?.name || '';
+      document.getElementById('formAccountNo').value = record?.accountNo || '';
+      document.getElementById('formCif').value = record?.cif || '';
+      document.getElementById('formDob').value = record?.dateOfBirth || '';
+      document.getElementById('formOpening').value = record?.dateOfOpening || '';
+      document.getElementById('formMaturity').value = record?.dateOfMaturity || '';
+      document.getElementById('formMonthly').value = record?.monthlyInstallment ?? '';
+      formModal.hidden = false;
+      document.getElementById('formName').focus();
+    }
+
+    function closeForm() {
+      formModal.hidden = true;
+      state.editingId = null;
+    }
+
+    async function removeRecord(record) {
+      if (!window.confirm(`Soft-delete ${record.name}?`)) return;
+      try {
+        await api(`/api/admin/records/${record.id}`, { method: 'DELETE' });
+        setStatus('Record soft-deleted.');
+        await Promise.all([loadRecords(), loadAudit()]);
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    async function restoreRecord(record) {
+      try {
+        await api(`/api/admin/records/${record.id}/restore`, { method: 'POST' });
+        setStatus('Record restored.');
+        await Promise.all([loadRecords(), loadAudit()]);
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    async function exportCsv() {
+      try {
+        const params = state.includeDeleted ? '?includeDeleted=1' : '';
+        const response = await fetch(`/api/admin/export${params}`, { credentials: 'same-origin' });
+        if (!response.ok) throw new Error('Export failed.');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'recurring-deposits.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+        setStatus('CSV export downloaded.');
+        await loadAudit();
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    document.getElementById('searchForm').addEventListener('submit', event => {
+      event.preventDefault();
+      state.query = document.getElementById('searchInput').value.trim();
+      state.page = 1;
+      loadRecords();
+    });
+    document.getElementById('includeDeleted').addEventListener('change', event => {
+      state.includeDeleted = event.target.checked;
+      state.page = 1;
+      loadRecords();
+    });
+    document.getElementById('refresh').addEventListener('click', () => Promise.all([loadRecords(), loadAudit()]));
+    document.getElementById('export').addEventListener('click', exportCsv);
+    document.getElementById('newRecord').addEventListener('click', () => openForm());
+    document.getElementById('closeModal').addEventListener('click', closeForm);
+    document.getElementById('cancelModal').addEventListener('click', closeForm);
+    document.getElementById('previous').addEventListener('click', () => { if (state.page > 1) { state.page -= 1; loadRecords(); } });
+    document.getElementById('next').addEventListener('click', () => { state.page += 1; loadRecords(); });
+    document.getElementById('signOut').addEventListener('click', () => { window.location.href = '/cdn-cgi/access/logout'; });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !formModal.hidden) closeForm(); });
+    recordForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const payload = {
+        name: document.getElementById('formName').value,
+        accountNo: document.getElementById('formAccountNo').value,
+        cif: document.getElementById('formCif').value,
+        dateOfBirth: document.getElementById('formDob').value,
+        dateOfOpening: document.getElementById('formOpening').value,
+        dateOfMaturity: document.getElementById('formMaturity').value,
+        monthlyInstallment: document.getElementById('formMonthly').value
+      };
+      try {
+        const editing = state.editingId;
+        const path = editing ? `/api/admin/records/${editing}` : '/api/admin/records';
+        await api(path, { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
+        closeForm();
+        setStatus(editing ? 'Record updated.' : 'Record created.');
+        await Promise.all([loadRecords(), loadAudit()]);
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    });
+
+    async function start() {
+      try {
+        const session = await api('/api/admin/session');
+        adminEmail.textContent = session.email;
+        accessStatus.textContent = 'Verified administrator';
+        await Promise.all([loadRecords(), loadAudit()]);
+      } catch (error) {
+        adminEmail.textContent = 'Access required';
+        accessStatus.textContent = error.message;
+        setStatus('Sign in through Cloudflare Access to manage records.', true);
+      }
+    }
+
+    start();
+  </script>
+</body>
+</html>
