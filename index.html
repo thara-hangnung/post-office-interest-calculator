@@ -897,6 +897,191 @@
       td:first-child { display: table-cell; margin-bottom: 0; }
       td::before, td:first-child::before { display: none; }
     }
+    :root {
+      --ink: #173142;
+      --muted: #657681;
+      --paper: #f7f4ef;
+      --card: #fffefa;
+      --line: #e4ded5;
+      --orange: #e9683b;
+      --orange-dark: #c6502a;
+      --teal: #087f78;
+      --navy: #16364a;
+      --shadow: 0 10px 28px rgba(22, 54, 74, .08);
+    }
+
+    body { background: var(--paper); }
+    .app { width: min(1040px, calc(100% - 28px)); padding-top: 18px; }
+    .topbar { margin-bottom: 15px; }
+    .brand { font-size: 15px; }
+    .brand small { font-size: 9px; }
+
+    .hero {
+      min-height: 200px;
+      padding: 28px 32px;
+      background: var(--navy);
+      border-radius: 18px;
+    }
+
+    .hero h1 {
+      max-width: 540px;
+      margin-bottom: 8px;
+      font-size: clamp(2.1rem, 5vw, 3.5rem);
+    }
+
+    .hero p:not(.eyebrow) {
+      max-width: 440px;
+      color: #c4d4da;
+      font-size: 13px;
+    }
+
+    .hero-steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .hero-steps span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #dbe6e8;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .hero-steps b {
+      display: grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      color: var(--white);
+      background: var(--orange);
+      border-radius: 50%;
+      font-size: 10px;
+    }
+
+    .rate-date {
+      min-width: 150px;
+      padding: 13px 14px;
+      background: rgba(255, 255, 255, .08);
+      border-color: rgba(255, 255, 255, .14);
+    }
+
+    .rate-date strong { font-size: 17px; }
+    .rate-date span, .rate-date small { font-size: 9px; }
+    .layout { gap: 14px; }
+    .card { border-radius: 16px; box-shadow: var(--shadow); }
+    .controls-card, .result-card, .rates-card { padding: 20px; }
+    .card-heading { margin-bottom: 16px; }
+    .card-heading h2, .rates-heading h2 { font-size: 20px; }
+    .card-heading p, .rates-heading p { font-size: 11px; }
+    .step { background: var(--orange); }
+    .control { margin-bottom: 14px; }
+    .control-box { padding: 12px; background: var(--card); }
+    .control-label { font-size: 10px; }
+    .control-top { margin-bottom: 9px; }
+    .number-field { min-height: 38px; background: #f8f8f5; }
+    input[type="number"] { font-size: 20px; }
+    select { min-height: 44px; background: #fbfaf7; font-size: 14px; }
+    .range-labels { font-size: 9px; }
+    .control-hint, .scheme-hint { min-height: 14px; font-size: 10px; }
+    .form-footer { margin-top: 16px; padding-top: 14px; }
+    .form-footer > span { font-size: 10px; }
+    .primary, .secondary { min-height: 42px; border-radius: 9px; }
+    .primary { background: var(--orange); }
+    .secondary { color: var(--ink); border-color: var(--line); }
+
+    .result-card {
+      padding: 20px;
+      background: var(--navy);
+      border-radius: 16px;
+      box-shadow: none;
+    }
+
+    .result-top { margin-bottom: 15px; }
+    .result-top > span:first-child { font-size: 10px; }
+    .result-scheme { margin: -7px 0 14px; color: #d4e1e3; font-size: 12px; }
+    .rate-pill { color: #b8e3db; background: rgba(8, 127, 120, .25); font-size: 9px; }
+    .result-label { margin-bottom: 5px; font-size: 11px; }
+    .result-value { font-size: clamp(2.3rem, 5vw, 3.5rem); margin-bottom: 5px; }
+    .result-caption { min-height: 16px; margin-bottom: 16px; font-size: 11px; }
+    .divider { margin-bottom: 14px; }
+    .metrics { gap: 12px; margin-bottom: 16px; }
+    .metric-label { font-size: 9px; }
+    .metric-value { font-size: 15px; }
+    .breakdown-heading { font-size: 10px; }
+    .result-note { display: none; }
+
+    .rates-card { padding: 20px; }
+    .rates-heading { margin-bottom: 13px; }
+    .updated { padding: 6px 8px; font-size: 9px; }
+    .table-wrap { overflow: visible; }
+    table { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+    thead { display: none; }
+    tbody { display: contents; }
+    tr { display: block; padding: 11px 12px; background: #fbfaf7; border: 1px solid var(--line); border-radius: 10px; }
+    td { display: grid; grid-template-columns: 1fr auto; gap: 5px 8px; padding: 0; border: 0; vertical-align: middle; }
+    td:first-child { grid-column: 1 / -1; display: block; }
+    td::before, td:first-child::before { display: none; }
+    td strong { font-size: 12px; }
+    td.rate { color: var(--teal); font-size: 12px; }
+    td.compound { color: var(--muted); font-size: 10px; text-align: right; }
+    .footnote { margin-top: 12px; font-size: 10px; }
+    .install-popup { background: rgba(22, 54, 74, .62); }
+    .install-popup-card { padding: 22px; border-radius: 16px; }
+    .install-popup h2 { font-size: 21px; }
+    .install-popup p { font-size: 12px; }
+
+    @media (max-width: 800px) {
+      .hero { grid-template-columns: 1fr; min-height: 0; }
+      .rate-date { width: fit-content; }
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .app { width: calc(100% - 20px); }
+      .hero { padding: 22px 20px; border-radius: 16px; }
+      .hero h1 { font-size: clamp(2rem, 10vw, 2.7rem); }
+      .hero p:not(.eyebrow) { font-size: 12px; }
+      .hero-steps { gap: 6px; }
+      .controls-card, .result-card, .rates-card { padding: 16px; }
+      .control-top { align-items: stretch; flex-direction: column; gap: 7px; }
+      .number-field { width: 100%; }
+      .form-footer { align-items: stretch; flex-direction: column; }
+      .button-group { width: 100%; }
+      .button-group .primary, .button-group .secondary { flex: 1; width: auto; }
+      .rates-heading { flex-direction: column; gap: 8px; }
+      table { display: block; }
+      tbody { display: block; }
+      tr { margin-bottom: 8px; }
+      td { grid-template-columns: 1fr auto; }
+      td::before { display: none; }
+    }
+
+    @media print {
+      .hero, .controls-card, .install-popup { display: none !important; }
+      .layout { display: block; }
+      .result-card, .rates-card { padding: 16px; border-radius: 0; box-shadow: none; }
+      .result-card { color: var(--ink); background: #fff; border: 1px solid #d7dde0; }
+      .result-scheme { display: none; }
+      .print-only { display: block; }
+      .print-summary { display: grid; }
+      .result-top > span:first-child, .result-label, .result-caption, .metric-label, .breakdown-heading, .legend, .result-note { color: #5b6870; }
+      .result-value, .metric-value { color: #111; }
+      .rate-pill { color: var(--teal); background: #e8f6f2; }
+      .divider { background: #d7dde0; }
+      .breakdown-bar { background: #edf0f0; }
+      .result-note { display: block; border-top-color: #d7dde0; }
+      table { display: table; min-width: 0; }
+      tbody { display: table-row-group; }
+      tr { display: table-row; padding: 0; background: transparent; border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+      td { display: table-cell; padding: 8px 6px; border: 0; text-align: left; }
+      td:first-child { display: table-cell; }
+      td.rate, td.compound { text-align: left; }
+      td::before { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -912,15 +1097,20 @@
     </header>
 
     <section class="hero" aria-labelledby="page-title">
-      <div>
-        <p class="eyebrow">India Post small savings</p>
-        <h1 id="page-title">Plan your post office savings with clear numbers.</h1>
-        <p>Choose a scheme, drag the sliders or type exact values. Interest rates and periods adapt to the selected scheme.</p>
+      <div class="hero-copy">
+        <p class="eyebrow">India Post savings</p>
+        <h1 id="page-title">See your savings grow.</h1>
+        <p>Choose a scheme. Slide the values. See your result.</p>
+        <div class="hero-steps" aria-label="How the calculator works">
+          <span><b>1</b>Choose</span>
+          <span><b>2</b>Slide</span>
+          <span><b>3</b>Save</span>
+        </div>
       </div>
       <div class="rate-date">
-        <span>Rate table checked</span>
+        <span>Rates checked</span>
         <strong>12 Aug 2026</strong>
-        <small>Verify rates before investing</small>
+        <small>Official source</small>
       </div>
     </section>
 
@@ -928,14 +1118,14 @@
       <form class="card controls-card" id="calculatorForm" novalidate>
         <div class="card-heading">
           <div>
-            <h2>Enter your plan</h2>
-            <p>Every value can be typed or moved with its slider.</p>
+            <h2>Set your plan</h2>
+            <p>Choose, slide, calculate.</p>
           </div>
           <span class="step" aria-hidden="true">1</span>
         </div>
 
         <div class="control">
-          <label class="control-label" for="schemeSelect">Post Office scheme</label>
+          <label class="control-label" for="schemeSelect">Scheme</label>
           <select id="schemeSelect" name="scheme"></select>
           <small class="scheme-hint" id="schemeHint"></small>
         </div>
@@ -958,7 +1148,7 @@
         <div class="control">
           <div class="control-box">
             <div class="control-top">
-              <label class="control-label" for="rateNumber">Interest rate</label>
+              <label class="control-label" for="rateNumber">Rate</label>
               <span class="number-field">
                 <input id="rateNumber" name="rate" type="number" inputmode="decimal" min="0" max="15" step="0.1" required>
                 <span class="suffix">% p.a.</span>
@@ -973,7 +1163,7 @@
         <div class="control">
           <div class="control-box">
             <div class="control-top">
-              <label class="control-label" for="yearsNumber">Investment period</label>
+              <label class="control-label" for="yearsNumber">Years</label>
               <span class="number-field">
                 <input id="yearsNumber" name="years" type="number" inputmode="decimal" min="0.25" step="0.5" required>
                 <span class="suffix">years</span>
@@ -986,7 +1176,7 @@
         </div>
 
         <div class="form-footer">
-          <span>Rates are planning inputs, not a promise of future returns.</span>
+          <span>Tap a slider or type a number.</span>
           <div class="button-group">
             <button class="secondary" id="exportPdf" type="button" title="Open the print dialog, then choose Save as PDF">Export PDF</button>
             <button class="primary" type="submit">Calculate interest</button>
@@ -997,7 +1187,7 @@
 
       <aside class="result-card" aria-live="polite" aria-labelledby="resultTitle">
         <div class="result-top">
-          <span id="resultTitle">Your estimate</span>
+          <span id="resultTitle">Result</span>
           <span class="rate-pill" id="ratePill">Official rate</span>
         </div>
         <div class="result-scheme" id="resultScheme">National Savings Recurring Deposit</div>
@@ -1007,7 +1197,7 @@
           <div><span>Rate used</span><strong id="printRate"></strong></div>
           <div><span>Period</span><strong id="printYears"></strong></div>
         </div>
-        <div class="result-label" id="valueLabel">Estimated maturity value</div>
+        <div class="result-label" id="valueLabel">Maturity</div>
         <strong class="result-value" id="maturityValue">₹0</strong>
         <div class="result-caption" id="valueCaption"></div>
         <div class="divider"></div>
@@ -1039,8 +1229,8 @@
     <section class="card rates-card" aria-labelledby="ratesTitle">
       <div class="rates-heading">
         <div>
-          <h2 id="ratesTitle">Latest published rates</h2>
-          <p>Official India Post rates used as each scheme’s starting point. TD varies by tenure.</p>
+          <h2 id="ratesTitle">Rates</h2>
+          <p>Starting points from India Post.</p>
         </div>
         <span class="updated">Updated 12 Aug 2026</span>
       </div>
@@ -1049,15 +1239,14 @@
           <thead>
             <tr>
               <th scope="col">Scheme</th>
-              <th scope="col">Interest rate</th>
-              <th scope="col">Compounding / payout</th>
-              <th scope="col">Deposit pattern</th>
+              <th scope="col">Rate</th>
+              <th scope="col">Term</th>
             </tr>
           </thead>
           <tbody id="ratesTable"></tbody>
         </table>
       </div>
-      <p class="footnote">This is an estimate, not financial advice. Government rates, eligibility and tax rules may change. Verify current terms with your post office before investing. <a href="https://www.indiapost.gov.in/banking-services/savings" target="_blank" rel="noopener">Read the official India Post page</a>.</p>
+      <p class="footnote">Rates can change. Verify with India Post before investing. <a href="https://www.indiapost.gov.in/banking-services/savings" target="_blank" rel="noopener">Official rates ↗</a></p>
     </section>
   </main>
 
@@ -1065,8 +1254,8 @@
     <div class="install-popup-card">
       <div class="install-popup-mark" aria-hidden="true">PO</div>
       <button class="install-close" id="installClose" type="button" aria-label="Close install prompt">×</button>
-      <h2 id="installTitle">Install Post Office Saver</h2>
-      <p id="installDescription">Add the calculator to your home screen for quick access and offline use.</p>
+      <h2 id="installTitle">Add to home screen</h2>
+      <p id="installDescription">Open the calculator faster, even offline.</p>
       <div class="install-popup-actions">
         <button class="secondary" id="dismissInstall" type="button">Not now</button>
         <button class="primary" id="installApp" type="button">Install app</button>
@@ -1079,25 +1268,25 @@
     const schemeList = [
       {
         id: 'sb', name: 'Post Office Savings Account', shortName: 'Savings account', officialRate: 4, rateMin: 0, rateMax: 10,
-        amountLabel: 'Opening balance', amountMin: 0, amountMax: 1000000000, amountStep: 1000, amountDefault: 100000, amountSliderMax: 1000000,
+        amountLabel: 'Amount', amountMin: 0, amountMax: 1000000000, amountStep: 1000, amountDefault: 100000, amountSliderMax: 1000000,
         yearsMin: 0.25, yearsMax: 25, yearsStep: 0.25, yearsDefault: 5, type: 'lump', compounding: 4, compoundingLabel: 'Quarterly',
         tableRate: '4%', hint: 'A flexible balance with quarterly interest.'
       },
       {
         id: 'rd', name: 'National Savings Recurring Deposit', shortName: 'Recurring deposit', officialRate: 6.7, rateMin: 0, rateMax: 12,
-        amountLabel: 'Monthly deposit', amountMin: 100, amountMax: 100000, amountStep: 100, amountDefault: 5000, amountSliderMax: 50000,
+        amountLabel: 'Monthly', amountMin: 100, amountMax: 100000, amountStep: 100, amountDefault: 5000, amountSliderMax: 50000,
         yearsMin: 3, yearsMax: 10, yearsStep: 1, yearsDefault: 5, yearsHint: 'Whole years only. 3–4 years uses 4%; 5–10 years uses 6.7%.', type: 'monthly', compounding: 4, compoundingLabel: 'Quarterly',
         tableRate: '4% / 6.7%', hint: 'Minimum 3-year lock-in. Early closure at 3–4 years uses 4%; 5–10 years uses 6.7%.'
       },
       {
         id: 'mis', name: 'Monthly Income Scheme', shortName: 'Monthly income', officialRate: 7.4, rateMin: 0, rateMax: 15,
-        amountLabel: 'One-time deposit', amountMin: 1000, amountMax: 1000000000, amountStep: 1000, amountDefault: 100000, amountSliderMax: 1000000,
+        amountLabel: 'Amount', amountMin: 1000, amountMax: 1000000000, amountStep: 1000, amountDefault: 100000, amountSliderMax: 1000000,
         yearsMin: 5, yearsMax: 5, yearsStep: 1, yearsDefault: 5, yearsHint: 'MIS has a fixed 5-year term.', type: 'income', compounding: 1, compoundingLabel: 'Monthly payout',
         tableRate: '7.4%', hint: 'A 5-year account with interest paid monthly.'
       },
       {
         id: 'scss', name: 'Senior Citizens Savings Scheme', shortName: 'Senior citizens', officialRate: 8.2, rateMin: 0, rateMax: 15,
-        amountLabel: 'Deposit amount', amountMin: 1000, amountMax: 30000000, amountStep: 1000, amountDefault: 100000, amountSliderMax: 1000000,
+        amountLabel: 'Amount', amountMin: 1000, amountMax: 30000000, amountStep: 1000, amountDefault: 100000, amountSliderMax: 1000000,
         yearsMin: 5, yearsMax: 14, yearsStep: 3, yearsDefault: 5, type: 'lump', compounding: 4, compoundingLabel: 'Quarterly',
         tableRate: '8.2%', hint: 'Initial term is 5 years; renewals add 3-year blocks.'
       },
@@ -1121,19 +1310,19 @@
       },
       {
         id: 'kvp', name: 'Kisan Vikas Patra', shortName: 'Kisan Vikas Patra', officialRate: 7.5, rateMin: 0, rateMax: 15,
-        amountLabel: 'Deposit amount', amountMin: 1000, amountMax: 1000000000, amountStep: 1000, amountDefault: 100000, amountSliderMax: 1000000,
+        amountLabel: 'Amount', amountMin: 1000, amountMax: 1000000000, amountStep: 1000, amountDefault: 100000, amountSliderMax: 1000000,
         yearsMin: 2, yearsMax: 25, yearsStep: 0.5, yearsDefault: 9.5, type: 'lump', compounding: 1, compoundingLabel: 'Yearly',
         tableRate: '7.5%', hint: 'One-time deposit; the published doubling period is about 115 months.'
       },
       {
         id: 'mahila', name: 'Mahila Samman Savings Certificate', shortName: 'Mahila Samman', officialRate: 7.5, rateMin: 0, rateMax: 15,
-        amountLabel: 'Deposit amount', amountMin: 1000, amountMax: 200000, amountStep: 1000, amountDefault: 50000, amountSliderMax: 200000,
+        amountLabel: 'Amount', amountMin: 1000, amountMax: 200000, amountStep: 1000, amountDefault: 50000, amountSliderMax: 200000,
         yearsMin: 2, yearsMax: 2, yearsStep: 1, yearsDefault: 2, type: 'lump', compounding: 4, compoundingLabel: 'Quarterly',
         tableRate: '7.5%', hint: 'A 2-year certificate with a ₹2 lakh maximum deposit.'
       },
       {
         id: 'nsc', name: 'National Savings Certificate VIII Issue', shortName: 'NSC VIII Issue', officialRate: 7.7, rateMin: 0, rateMax: 15,
-        amountLabel: 'Deposit amount', amountMin: 100, amountMax: 1000000000, amountStep: 100, amountDefault: 10000, amountSliderMax: 500000,
+        amountLabel: 'Amount', amountMin: 100, amountMax: 1000000000, amountStep: 100, amountDefault: 10000, amountSliderMax: 500000,
         yearsMin: 5, yearsMax: 5, yearsStep: 1, yearsDefault: 5, type: 'lump', compounding: 1, compoundingLabel: 'Yearly',
         tableRate: '7.7%', hint: 'A 5-year certificate; interest is paid at maturity.'
       }
@@ -1307,15 +1496,15 @@
       if (!canOfferInstall()) return;
       clearInstallFallback();
       if (!installPopup.hidden) {
-        installTitle.textContent = deferredInstallPrompt ? 'Install Post Office Saver' : 'Add Post Office Saver';
-        installDescription.textContent = deferredInstallPrompt ? 'Add the calculator to your home screen for quick access and offline use.' : 'Use your browser menu to add this calculator to your home screen for quick access and offline use.';
+        installTitle.textContent = deferredInstallPrompt ? 'Install calculator' : 'Add to home screen';
+        installDescription.textContent = deferredInstallPrompt ? 'Open it faster, even offline.' : 'Use your browser menu to add this app.';
         installApp.textContent = deferredInstallPrompt ? 'Install app' : 'Show install steps';
         installApp.disabled = false;
         return;
       }
       lastFocusedElement = document.activeElement;
-      installTitle.textContent = deferredInstallPrompt ? 'Install Post Office Saver' : 'Add Post Office Saver';
-      installDescription.textContent = deferredInstallPrompt ? 'Add the calculator to your home screen for quick access and offline use.' : 'Use your browser menu to add this calculator to your home screen for quick access and offline use.';
+      installTitle.textContent = deferredInstallPrompt ? 'Install calculator' : 'Add to home screen';
+      installDescription.textContent = deferredInstallPrompt ? 'Open it faster, even offline.' : 'Use your browser menu to add this app.';
       installApp.textContent = deferredInstallPrompt ? 'Install app' : 'Show install steps';
       installApp.disabled = false;
       installHint.hidden = true;
@@ -1368,16 +1557,30 @@
       }, 1400);
     }
 
+    function shortHint(scheme) {
+      if (scheme.id === 'rd') return '3–10 years · 4% early rate / 6.7% full rate';
+      if (scheme.id === 'sb') return 'Flexible savings';
+      if (scheme.id === 'mis') return '5 years · monthly payout';
+      if (scheme.id === 'td') return '1, 2, 3 or 5 years';
+      if (scheme.id === 'kvp') return 'One-time deposit · doubles in 115 months';
+      if (scheme.id === 'nsc') return '5 years · paid at maturity';
+      return scheme.hint;
+    }
+
     function renderOptions() {
       schemeSelect.innerHTML = schemeList.map(scheme => `<option value="${scheme.id}">${scheme.name}</option>`).join('');
     }
 
+    function termFor(scheme) {
+      if (scheme.id === 'td') return '1 / 2 / 3 / 5 years';
+      if (scheme.id === 'sb') return 'Flexible';
+      if (scheme.yearsMin === scheme.yearsMax) return `${scheme.yearsMin} years`;
+      return `${scheme.yearsMin}–${scheme.yearsMax} years`;
+    }
+
     function renderRateTable() {
       const tbody = document.getElementById('ratesTable');
-      tbody.innerHTML = schemeList.map(scheme => {
-        const pattern = scheme.type === 'monthly' ? 'Monthly deposit' : scheme.type === 'annual' ? 'Annual deposit' : scheme.type === 'income' ? 'One-time + monthly payout' : 'One-time deposit';
-        return `<tr><td data-label="Scheme"><strong>${scheme.name}</strong><small>${scheme.shortName}</small></td><td data-label="Interest rate" class="rate">${scheme.tableRate} p.a.</td><td data-label="Compounding / payout" class="compound">${scheme.compoundingLabel}</td><td data-label="Deposit pattern">${pattern}</td></tr>`;
-      }).join('');
+      tbody.innerHTML = schemeList.map(scheme => `<tr><td data-label="Scheme"><strong>${scheme.shortName}</strong></td><td data-label="Rate" class="rate">${scheme.tableRate}</td><td data-label="Term" class="compound">${termFor(scheme)}</td></tr>`).join('');
     }
 
     function updateRateHint() {
@@ -1391,7 +1594,7 @@
     function setScheme() {
       const scheme = schemes[selectedId];
       schemeSelect.value = selectedId;
-      schemeHint.textContent = scheme.hint;
+      schemeHint.textContent = shortHint(scheme);
       amountLabel.textContent = scheme.amountLabel;
       amountNumber.min = scheme.amountMin;
       amountNumber.max = scheme.amountMax;
@@ -1403,7 +1606,7 @@
       amountRange.value = Math.min(scheme.amountSliderMax, scheme.amountDefault);
       amountMin.textContent = money(scheme.amountMin);
       amountMax.textContent = `${money(scheme.amountSliderMax)}+`;
-      amountHint.textContent = `Enter any amount from ${money(scheme.amountMin)} to ${money(scheme.amountMax)}.`;
+      amountHint.textContent = `Min ${money(scheme.amountMin)} · Max ${money(scheme.amountMax)}`;
       rateNumber.min = scheme.rateMin;
       rateNumber.max = scheme.rateMax;
       rateNumber.step = 0.1;
@@ -1432,7 +1635,7 @@
       syncYearsRange(scheme.yearsDefault);
       yearsMin.textContent = scheme.rangeTerms ? `${scheme.rangeTerms[0]} year` : `${scheme.yearsMin} years`;
       yearsMax.textContent = scheme.rangeTerms ? `${scheme.rangeTerms.slice(1).join(' / ')} years` : `${scheme.yearsMax} years`;
-      yearsHint.textContent = scheme.yearsHint || (scheme.yearsMin === scheme.yearsMax ? 'This scheme has a fixed term.' : `Choose between ${scheme.yearsMin} and ${scheme.yearsMax} years.`);
+      yearsHint.textContent = scheme.id === 'rd' ? 'Whole years only' : scheme.id === 'td' ? 'Choose 1, 2, 3 or 5 years' : (scheme.yearsHint || (scheme.yearsMin === scheme.yearsMax ? 'Fixed term' : `${scheme.yearsMin}–${scheme.yearsMax} years`));
       updateRateHint();
       paintRange(amountRange);
       paintRange(rateRange);
@@ -1524,7 +1727,7 @@
       const isOfficialRate = Math.abs(rate - currentOfficialRate) < 0.001;
       ratePill.textContent = isOfficialRate ? 'Official rate' : 'Planning rate';
       resultScheme.textContent = scheme.name;
-      valueLabel.textContent = isIncome ? 'Principal at end of period' : 'Estimated maturity value';
+      valueLabel.textContent = isIncome ? 'Principal' : 'Maturity';
       maturityValue.textContent = formatResultMoney(result.value);
       valueCaption.textContent = isIncome ? `Total interest paid over ${durationText(years)}` : `For ${durationText(years)} at ${rateText(rate)} p.a.`;
       investedValue.textContent = formatResultMoney(result.invested);
