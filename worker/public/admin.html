@@ -41,6 +41,11 @@
     .search .field { flex: 1; }
     .check { display: flex; align-items: center; gap: 7px; min-height: 42px; color: var(--muted); font-size: 12px; white-space: nowrap; }
     .check input { accent-color: var(--teal); }
+    .select-cell { width: 44px; text-align: center; }
+    .select-cell input { width: 16px; height: 16px; accent-color: var(--teal); }
+    .bulk-summary { color: var(--muted); font-size: 12px; }
+    .deposit-summary { margin: 0 0 16px; padding: 12px 13px; color: var(--muted); background: #f3f8f6; border-radius: 10px; font-size: 12px; line-height: 1.5; }
+    .deposit-summary strong { color: var(--ink); }
     .actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
     .button { min-height: 40px; padding: 10px 13px; color: var(--ink); background: #fff; border: 1px solid #b8cbd1; border-radius: 10px; font-size: 12px; font-weight: 800; }
     .button:hover { background: #edf5f6; }
@@ -56,7 +61,7 @@
     .stat strong { display: block; margin-top: 6px; color: var(--teal); font-size: 25px; letter-spacing: -.04em; }
     .table-card { overflow: hidden; }
     .table-wrap { overflow-x: auto; }
-    table { width: 100%; min-width: 950px; border-collapse: collapse; }
+    table { width: 100%; min-width: 1100px; border-collapse: collapse; }
     th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
     th { color: var(--muted); background: #fbfaf7; font-size: 10px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
     td { font-size: 13px; }
@@ -124,6 +129,8 @@
         <button class="button" type="submit">Search</button>
       </form>
       <div class="actions">
+        <button class="button primary" id="markDeposits" type="button" disabled>Mark selected deposited</button>
+        <span class="bulk-summary" id="selectedCount">0 selected</span>
         <button class="button" id="refresh" type="button">Refresh</button>
         <button class="button" id="export" type="button">Export CSV</button>
         <button class="button primary" id="newRecord" type="button">New record</button>
@@ -141,8 +148,8 @@
     <section class="card table-card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Customer</th><th>Account / CIF</th><th>Dates</th><th>Monthly</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody id="recordsBody"><tr><td class="empty" colspan="6">Loading records…</td></tr></tbody>
+          <thead><tr><th class="select-cell"><input id="selectAll" type="checkbox" aria-label="Select all visible records"></th><th>Customer</th><th>Account / CIF</th><th>Dates</th><th>Monthly</th><th>Deposited</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="recordsBody"><tr><td class="empty" colspan="8">Loading records…</td></tr></tbody>
         </table>
       </div>
       <div class="pager"><span id="pageSummary">—</span><div class="actions"><button class="button small" id="previous" type="button">Previous</button><button class="button small" id="next" type="button">Next</button></div></div>
@@ -172,12 +179,29 @@
     </div>
   </div>
 
+  <div class="modal" id="depositModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="depositTitle">
+      <div class="modal-head"><div><h2 id="depositTitle">Mark deposits</h2><p>Record one monthly installment for each selected active RD.</p></div><button class="close" id="closeDepositModal" type="button" aria-label="Close">×</button></div>
+      <p class="deposit-summary" id="depositSummary"></p>
+      <form id="depositForm">
+        <div class="field"><label for="depositDate">Deposit date</label><input id="depositDate" type="date" required></div>
+        <div class="form-actions"><button class="button" id="cancelDeposit" type="button">Cancel</button><button class="button primary" type="submit">Record deposits</button></div>
+      </form>
+    </div>
+  </div>
+
   <script>
-    const state = { page: 1, pageSize: 25, query: '', includeDeleted: false, editingId: null };
+    const state = { page: 1, pageSize: 25, query: '', includeDeleted: false, editingId: null, selectedIds: new Set(), visibleIds: [] };
     const recordsBody = document.getElementById('recordsBody');
     const statusBox = document.getElementById('status');
     const formModal = document.getElementById('formModal');
     const recordForm = document.getElementById('recordForm');
+    const depositModal = document.getElementById('depositModal');
+    const depositForm = document.getElementById('depositForm');
+    const depositDate = document.getElementById('depositDate');
+    const markDeposits = document.getElementById('markDeposits');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAll = document.getElementById('selectAll');
     const adminEmail = document.getElementById('adminEmail');
     const accessStatus = document.getElementById('accessStatus');
 
@@ -219,6 +243,20 @@
       return button;
     }
 
+    function updateSelectionUI() {
+      const selectedVisible = state.visibleIds.filter(id => state.selectedIds.has(id)).length;
+      selectedCount.textContent = `${state.selectedIds.size} selected`;
+      markDeposits.disabled = state.selectedIds.size === 0;
+      selectAll.checked = state.visibleIds.length > 0 && selectedVisible === state.visibleIds.length;
+      selectAll.indeterminate = selectedVisible > 0 && selectedVisible < state.visibleIds.length;
+    }
+
+    function setSelected(id, checked) {
+      if (checked) state.selectedIds.add(id);
+      else state.selectedIds.delete(id);
+      updateSelectionUI();
+    }
+
     function renderRecords(data) {
       recordsBody.replaceChildren();
       document.getElementById('totalRecords').textContent = data.total;
@@ -228,16 +266,27 @@
       document.getElementById('pageSummary').textContent = `Showing ${data.records.length} of ${data.total} records`;
       document.getElementById('previous').disabled = data.page <= 1;
       document.getElementById('next').disabled = data.page * data.pageSize >= data.total;
+      state.visibleIds = data.records.filter(record => !record.deletedAt).map(record => record.id);
       if (!data.records.length) {
         const row = element('tr');
         const cell = element('td', 'empty', 'No records found.');
-        cell.colSpan = 6;
+        cell.colSpan = 8;
         row.append(cell);
         recordsBody.append(row);
+        updateSelectionUI();
         return;
       }
       for (const record of data.records) {
         const row = element('tr', record.deletedAt ? 'deleted' : '');
+        row.dataset.recordId = record.id;
+        const selectCell = element('td', 'select-cell');
+        const checkbox = element('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = state.selectedIds.has(record.id);
+        checkbox.disabled = Boolean(record.deletedAt);
+        checkbox.setAttribute('aria-label', `Select ${record.name}`);
+        checkbox.addEventListener('change', event => setSelected(record.id, event.target.checked));
+        selectCell.append(checkbox);
         const customer = element('td');
         customer.append(element('span', 'person', record.name));
         if (record.deletedAt) customer.append(element('span', 'subvalue', 'Deleted record'));
@@ -249,18 +298,27 @@
         dates.append(element('span', 'subvalue', `Opened ${record.dateOfOpening}`));
         dates.append(element('span', 'subvalue', `Maturity ${record.dateOfMaturity || 'Not recorded'}`));
         const monthly = element('td', 'person', money(record.monthlyInstallment));
+        const deposited = element('td');
+        if (record.manualDepositCount) {
+          deposited.append(element('span', 'person', money(record.manualDepositTotal)));
+          deposited.append(element('span', 'subvalue', `${record.manualDepositCount} recorded · ${record.lastDepositDate || 'no date'}`));
+        } else {
+          deposited.append(element('span', 'subvalue', 'No manual deposits'));
+        }
         const status = element('td');
         status.append(record.deletedAt ? element('span', 'badge', 'Deleted') : element('span', 'subvalue', 'Active'));
         const actions = element('td', 'row-actions');
         if (!record.deletedAt) {
           actions.append(actionButton('Edit', () => openForm(record)));
           actions.append(actionButton('Delete', () => removeRecord(record), 'danger'));
+          if (record.lastDepositBatchId) actions.append(actionButton('Undo deposit', () => reverseDeposit(record)));
         } else {
           actions.append(actionButton('Restore', () => restoreRecord(record)));
         }
-        row.append(customer, account, dates, monthly, status, actions);
+        row.append(selectCell, customer, account, dates, monthly, deposited, status, actions);
         recordsBody.append(row);
       }
+      updateSelectionUI();
     }
 
     async function loadRecords() {
@@ -315,6 +373,39 @@
       state.editingId = null;
     }
 
+    function openDepositModal() {
+      const selected = [...state.selectedIds];
+      if (!selected.length) return;
+      const names = selected.map(id => {
+        const row = recordsBody.querySelector(`[data-record-id="${id}"]`);
+        return row?.querySelector('.person')?.textContent || `#${id}`;
+      });
+      const summary = document.getElementById('depositSummary');
+      summary.replaceChildren();
+      summary.append(element('strong', '', `${selected.length} account${selected.length === 1 ? '' : 's'} selected.`));
+      summary.append(document.createElement('br'));
+      summary.append(document.createTextNode(`${names.slice(0, 6).join(', ')}${names.length > 6 ? ` and ${names.length - 6} more` : ''}. Each account will receive one installment at its stored monthly amount.`));
+      depositDate.value = new Date().toISOString().slice(0, 10);
+      depositDate.max = new Date().toISOString().slice(0, 10);
+      depositModal.hidden = false;
+      depositDate.focus();
+    }
+
+    function closeDepositModal() {
+      depositModal.hidden = true;
+    }
+
+    async function reverseDeposit(record) {
+      if (!window.confirm(`Undo the last deposit batch for ${record.name}?`)) return;
+      try {
+        await api('/api/admin/deposits/reverse', { method: 'POST', body: JSON.stringify({ batchId: record.lastDepositBatchId }) });
+        setStatus('Deposit batch reversed.');
+        await Promise.all([loadRecords(), loadAudit()]);
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
     async function removeRecord(record) {
       if (!window.confirm(`Soft-delete ${record.name}?`)) return;
       try {
@@ -359,22 +450,52 @@
       event.preventDefault();
       state.query = document.getElementById('searchInput').value.trim();
       state.page = 1;
+      state.selectedIds.clear();
       loadRecords();
     });
     document.getElementById('includeDeleted').addEventListener('change', event => {
       state.includeDeleted = event.target.checked;
       state.page = 1;
+      state.selectedIds.clear();
       loadRecords();
     });
-    document.getElementById('refresh').addEventListener('click', () => Promise.all([loadRecords(), loadAudit()]));
+    document.getElementById('refresh').addEventListener('click', () => { state.selectedIds.clear(); Promise.all([loadRecords(), loadAudit()]); });
     document.getElementById('export').addEventListener('click', exportCsv);
     document.getElementById('newRecord').addEventListener('click', () => openForm());
+    document.getElementById('markDeposits').addEventListener('click', openDepositModal);
+    document.getElementById('closeDepositModal').addEventListener('click', closeDepositModal);
+    document.getElementById('cancelDeposit').addEventListener('click', closeDepositModal);
     document.getElementById('closeModal').addEventListener('click', closeForm);
     document.getElementById('cancelModal').addEventListener('click', closeForm);
-    document.getElementById('previous').addEventListener('click', () => { if (state.page > 1) { state.page -= 1; loadRecords(); } });
-    document.getElementById('next').addEventListener('click', () => { state.page += 1; loadRecords(); });
+    document.getElementById('previous').addEventListener('click', () => { if (state.page > 1) { state.page -= 1; state.selectedIds.clear(); loadRecords(); } });
+    document.getElementById('next').addEventListener('click', () => { state.page += 1; state.selectedIds.clear(); loadRecords(); });
     document.getElementById('signOut').addEventListener('click', () => { window.location.href = '/cdn-cgi/access/logout'; });
-    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !formModal.hidden) closeForm(); });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      if (!depositModal.hidden) closeDepositModal();
+      else if (!formModal.hidden) closeForm();
+    });
+    selectAll.addEventListener('change', event => {
+      state.visibleIds.forEach(id => event.target.checked ? state.selectedIds.add(id) : state.selectedIds.delete(id));
+      recordsBody.querySelectorAll('input[type="checkbox"]').forEach(checkbox => { checkbox.checked = event.target.checked; });
+      updateSelectionUI();
+    });
+    depositForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = depositForm.querySelector('button[type="submit"]');
+      button.disabled = true;
+      try {
+        const result = await api('/api/admin/records/deposit', { method: 'POST', body: JSON.stringify({ recordIds: [...state.selectedIds], depositDate: depositDate.value }) });
+        closeDepositModal();
+        state.selectedIds.clear();
+        setStatus(`Recorded ${result.records} deposit${result.records === 1 ? '' : 's'} totaling ${money(result.totalAmount)}.`);
+        await Promise.all([loadRecords(), loadAudit()]);
+      } catch (error) {
+        setStatus(error.message, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
     recordForm.addEventListener('submit', async event => {
       event.preventDefault();
       const payload = {

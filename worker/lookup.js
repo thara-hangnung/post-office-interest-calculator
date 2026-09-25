@@ -64,11 +64,15 @@ export function maskCif(value) {
 
 export function publicRecord(record, asOf = new Date()) {
   const estimate = estimateDeposit(record, asOf);
+  const manualCount = Number(record.manualDepositCount ?? record.manual_deposit_count ?? 0);
+  const manualTotal = Number(record.manualDepositTotal ?? record.manual_deposit_total ?? 0);
+  const hasManualDeposits = Number.isFinite(manualCount) && manualCount > 0;
   const openingValue = record.dateOfOpening ?? record.date_of_opening;
   const maturityValue = record.dateOfMaturity ?? record.date_of_maturity;
   const opening = parseDate(openingValue);
   const storedMaturity = normalizeDate(maturityValue);
   const maturity = storedMaturity || (opening ? addYears(opening, 5).toISOString().slice(0, 10).split('-').reverse().join('-') : '');
+  const manualDate = record.lastDepositDate ?? record.last_deposit_date;
   return {
     name: record.name ?? '',
     accountNo: maskAccount(record.accountNo ?? record.account_no),
@@ -78,8 +82,9 @@ export function publicRecord(record, asOf = new Date()) {
     maturityEstimated: !storedMaturity,
     dateOfBirth: normalizeDate(record.dateOfBirth ?? record.date_of_birth),
     monthlyInstallment: estimate.monthlyInstallment,
-    completedInstallments: estimate.installments,
-    estimatedDeposit: estimate.estimatedDeposit,
-    asOf: asOf.toISOString().slice(0, 10)
+    completedInstallments: hasManualDeposits ? manualCount : estimate.installments,
+    estimatedDeposit: hasManualDeposits ? (Number.isFinite(manualTotal) ? manualTotal : 0) : estimate.estimatedDeposit,
+    depositSource: hasManualDeposits ? 'manual' : 'estimate',
+    asOf: hasManualDeposits ? (normalizeDate(manualDate) || asOf.toISOString().slice(0, 10)) : asOf.toISOString().slice(0, 10)
   };
 }

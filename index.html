@@ -1476,7 +1476,7 @@
                 <dd id="lookupInstallments">—</dd>
               </div>
               <div class="lookup-detail lookup-estimate">
-                <dt>Estimated principal deposited</dt>
+                <dt id="lookupEstimateLabel">Estimated principal deposited</dt>
                 <dd id="lookupEstimated">—</dd>
               </div>
               <div class="lookup-detail">
@@ -1605,6 +1605,7 @@
     const lookupMaturity = document.getElementById('lookupMaturity');
     const lookupMonthly = document.getElementById('lookupMonthly');
     const lookupInstallments = document.getElementById('lookupInstallments');
+    const lookupEstimateLabel = document.getElementById('lookupEstimateLabel');
     const lookupEstimated = document.getElementById('lookupEstimated');
     const lookupAsOf = document.getElementById('lookupAsOf');
     const lookupNote = document.getElementById('lookupNote');
@@ -1693,9 +1694,12 @@
       lookupMaturity.textContent = data.dateOfMaturity || 'Not recorded';
       lookupMonthly.textContent = money(data.monthlyInstallment);
       lookupInstallments.textContent = `${data.completedInstallments} installments`;
+      lookupEstimateLabel.textContent = data.depositSource === 'manual' ? 'Manually recorded principal' : 'Estimated principal deposited';
       lookupEstimated.textContent = money(data.estimatedDeposit);
       lookupAsOf.textContent = data.asOf;
-      lookupNote.textContent = `Estimate uses ${data.completedInstallments} monthly installments due through ${data.asOf}; it is not a transaction balance.`;
+      lookupNote.textContent = data.depositSource === 'manual'
+        ? `Manually recorded deposits total ${data.completedInstallments} installments through ${data.asOf}.`
+        : `Date-based estimate uses ${data.completedInstallments} monthly installments due through ${data.asOf}; it is not a transaction balance.`;
       lookupResult.hidden = false;
     }
 

@@ -24,8 +24,26 @@ CREATE TABLE IF NOT EXISTS admin_audit_log (
   admin_email TEXT NOT NULL,
   action TEXT NOT NULL,
   record_id INTEGER,
+  batch_id TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS admin_audit_log_created
   ON admin_audit_log (created_at);
+
+CREATE TABLE IF NOT EXISTS recurring_deposit_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  record_id INTEGER NOT NULL,
+  amount REAL NOT NULL,
+  deposit_date TEXT NOT NULL,
+  batch_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reversed_at TEXT,
+  reversed_by TEXT
+);
+
+CREATE INDEX IF NOT EXISTS recurring_deposit_entries_record
+  ON recurring_deposit_entries (record_id, reversed_at, deposit_date);
+CREATE INDEX IF NOT EXISTS recurring_deposit_entries_batch
+  ON recurring_deposit_entries (batch_id);

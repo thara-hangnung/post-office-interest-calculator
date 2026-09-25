@@ -120,6 +120,10 @@ function adminRecord(row) {
     dateOfMaturity: row.date_of_maturity || '',
     dateOfBirth: row.date_of_birth,
     monthlyInstallment: Number(row.monthly_installment),
+    manualDepositTotal: Number(row.manual_deposit_total || 0),
+    manualDepositCount: Number(row.manual_deposit_count || 0),
+    lastDepositDate: row.last_deposit_date || '',
+    lastDepositBatchId: row.last_deposit_batch_id || '',
     createdAt: row.created_at || '',
     updatedAt: row.updated_at || '',
     deletedAt: row.deleted_at || null
@@ -136,17 +140,26 @@ async function readJson(request) {
   }
 }
 
-async function audit(env, email, action, recordId = null) {
+async function audit(env, email, action, recordId = null, batchId = null) {
   await env.DB.prepare(`
-    INSERT INTO admin_audit_log (admin_email, action, record_id)
-    VALUES (?, ?, ?)
-  `).bind(email, action, recordId).run();
+    INSERT INTO admin_audit_log (admin_email, action, record_id, batch_id)
+    VALUES (?, ?, ?, ?)
+  `).bind(email, action, recordId, batchId).run();
 }
 
 function recordSelect(where = '') {
   return `
     SELECT id, name, account_no, cif, date_of_opening, date_of_maturity, date_of_birth,
-           monthly_installment, created_at, updated_at, deleted_at
+           monthly_installment, created_at, updated_at, deleted_at,
+           COALESCE((SELECT SUM(e.amount) FROM recurring_deposit_entries e
+                     WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL), 0) AS manual_deposit_total,
+           (SELECT COUNT(*) FROM recurring_deposit_entries e
+            WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL) AS manual_deposit_count,
+           (SELECT MAX(e.deposit_date) FROM recurring_deposit_entries e
+            WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL) AS last_deposit_date,
+           (SELECT e.batch_id FROM recurring_deposit_entries e
+            WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL
+            ORDER BY e.id DESC LIMIT 1) AS last_deposit_batch_id
     FROM recurring_deposits
     ${where}
   `;
@@ -239,6 +252,67 @@ async function restoreRecord(env, email, id) {
   return true;
 }
 
+function normalizeAdminDate(value) {
+  const iso = String(value ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return normalizeDate(`${iso[3]}-${iso[2]}-${iso[1]}`);
+  return normalizeDate(value);
+}
+
+function normalizedDateToIso(value) {
+  const [day, month, year] = value.split('-');
+  return `${year}-${month}-${day}`;
+}
+
+function recordIdList(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map(Number).filter(id => Number.isInteger(id) && id > 0))].slice(0, 100);
+}
+
+async function createDepositBatch(request, env, email) {
+  if (!requireSameOrigin(request)) throw new Error('Invalid request origin.');
+  const input = await readJson(request);
+  const ids = recordIdList(input.recordIds);
+  const depositDate = normalizeAdminDate(input.depositDate);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  if (!ids.length) throw new Error('Select at least one active record.');
+  if (!depositDate || normalizedDateToIso(depositDate) > todayIso) throw new Error('Choose a valid deposit date that is not in the future.');
+  const placeholders = ids.map(() => '?').join(',');
+  const records = await env.DB.prepare(`
+    SELECT id, monthly_installment
+    FROM recurring_deposits
+    WHERE id IN (${placeholders}) AND deleted_at IS NULL
+  `).bind(...ids).all();
+  if (!records.results?.length) throw new Error('No active records were found.');
+  const batchId = crypto.randomUUID();
+  const statements = records.results.map(record => env.DB.prepare(`
+    INSERT INTO recurring_deposit_entries (record_id, amount, deposit_date, batch_id, created_by)
+    VALUES (?, ?, ?, ?, ?)
+  `).bind(record.id, Number(record.monthly_installment || 0), depositDate, batchId, email));
+  await env.DB.batch(statements);
+  await audit(env, email, 'deposit_batch', null, batchId);
+  return {
+    batchId,
+    depositDate,
+    records: records.results.length,
+    totalAmount: records.results.reduce((sum, record) => sum + Number(record.monthly_installment || 0), 0)
+  };
+}
+
+async function reverseDepositBatch(request, env, email) {
+  if (!requireSameOrigin(request)) throw new Error('Invalid request origin.');
+  const input = await readJson(request);
+  const batchId = String(input.batchId ?? '').trim();
+  if (!/^[0-9a-f-]{36}$/i.test(batchId)) throw new Error('Invalid deposit batch.');
+  const result = await env.DB.prepare(`
+    UPDATE recurring_deposit_entries
+    SET reversed_at = CURRENT_TIMESTAMP, reversed_by = ?
+    WHERE batch_id = ? AND reversed_at IS NULL
+  `).bind(email, batchId).run();
+  if (!result.meta.changes) throw new Error('Deposit batch was already reversed or not found.');
+  await audit(env, email, 'reverse_deposit_batch', null, batchId);
+  return { batchId, reversed: result.meta.changes };
+}
+
 function csvCell(value) {
   let text = String(value ?? '');
   if (/^[=+\-@]/.test(text)) text = `'${text}`;
@@ -250,7 +324,7 @@ async function exportRecords(request, env, email) {
   const includeDeleted = url.searchParams.get('includeDeleted') === '1';
   const where = includeDeleted ? '' : 'WHERE deleted_at IS NULL';
   const result = await env.DB.prepare(`${recordSelect(where)} ORDER BY name COLLATE NOCASE, id`).all();
-  const header = ['Name', 'Account number', 'CIF', 'Date of birth', 'Opening date', 'Maturity date', 'Monthly installment'];
+  const header = ['Name', 'Account number', 'CIF', 'Date of birth', 'Opening date', 'Maturity date', 'Monthly installment', 'Manual deposits', 'Manual deposit count', 'Last deposit date'];
   const lines = [header.map(csvCell).join(',')];
   for (const row of result.results || []) {
     lines.push([
@@ -260,7 +334,10 @@ async function exportRecords(request, env, email) {
       row.date_of_birth,
       row.date_of_opening,
       row.date_of_maturity || '',
-      row.monthly_installment
+      row.monthly_installment,
+      row.manual_deposit_total,
+      row.manual_deposit_count,
+      row.last_deposit_date || ''
     ].map(csvCell).join(','));
   }
   await audit(env, email, 'export');
@@ -314,8 +391,22 @@ async function handleAdminApi(request, env, ctx, url) {
     return exportRecords(request, env, email);
   }
   if (request.method === 'GET' && url.pathname === '/api/admin/audit') {
-    const result = await env.DB.prepare('SELECT id, admin_email, action, record_id, created_at FROM admin_audit_log ORDER BY id DESC LIMIT 100').all();
+    const result = await env.DB.prepare('SELECT id, admin_email, action, record_id, batch_id, created_at FROM admin_audit_log ORDER BY id DESC LIMIT 100').all();
     return jsonResponse(request, { entries: result.results || [] });
+  }
+  if (request.method === 'POST' && url.pathname === '/api/admin/records/deposit') {
+    try {
+      return jsonResponse(request, await createDepositBatch(request, env, email), 201);
+    } catch (error) {
+      return jsonResponse(request, { error: error?.message || 'Could not record deposits.' }, 400);
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/admin/deposits/reverse') {
+    try {
+      return jsonResponse(request, await reverseDepositBatch(request, env, email));
+    } catch (error) {
+      return jsonResponse(request, { error: error?.message || 'Could not reverse deposits.' }, 400);
+    }
   }
 
   const match = url.pathname.match(/^\/api\/admin\/records\/(\d+)$/);
@@ -389,7 +480,13 @@ export default {
 
     try {
       const record = await env.DB.prepare(`
-        SELECT name, account_no, cif, date_of_opening, date_of_maturity, date_of_birth, monthly_installment
+        SELECT name, account_no, cif, date_of_opening, date_of_maturity, date_of_birth, monthly_installment,
+               COALESCE((SELECT SUM(e.amount) FROM recurring_deposit_entries e
+                         WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL), 0) AS manual_deposit_total,
+               (SELECT COUNT(*) FROM recurring_deposit_entries e
+                WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL) AS manual_deposit_count,
+               (SELECT MAX(e.deposit_date) FROM recurring_deposit_entries e
+                WHERE e.record_id = recurring_deposits.id AND e.reversed_at IS NULL) AS last_deposit_date
         FROM recurring_deposits
         WHERE account_no = ? AND date_of_birth = ? AND deleted_at IS NULL
         LIMIT 1
