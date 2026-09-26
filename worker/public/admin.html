@@ -187,7 +187,7 @@
           <div class="field full"><label for="formName">Name</label><input id="formName" name="name" maxlength="200" required></div>
           <div class="field"><label for="formAccountNo">Account number</label><input id="formAccountNo" name="accountNo" inputmode="numeric" maxlength="20" required></div>
           <div class="field"><label for="formCif">CIF</label><input id="formCif" name="cif" maxlength="32" required></div>
-          <div class="field"><label for="formDob">Date of birth</label><input id="formDob" name="dateOfBirth" placeholder="DD-MM-YYYY" maxlength="10" required></div>
+          <div class="field"><label for="formDob">Date of birth</label><input id="formDob" name="dateOfBirth" type="date" required></div>
           <div class="field"><label for="formOpening">Opening date</label><input id="formOpening" name="dateOfOpening" placeholder="DD-MM-YYYY" maxlength="10" required></div>
           <div class="field"><label for="formMaturity">Maturity date</label><input id="formMaturity" name="dateOfMaturity" placeholder="DD-MM-YYYY" maxlength="10"></div>
           <div class="field"><label for="formMonthly">Monthly installment</label><input id="formMonthly" name="monthlyInstallment" type="number" min="0" step="0.01" required></div>
@@ -502,7 +502,8 @@
       document.getElementById('formName').value = record?.name || '';
       document.getElementById('formAccountNo').value = record?.accountNo || '';
       document.getElementById('formCif').value = record?.cif || '';
-      document.getElementById('formDob').value = record?.dateOfBirth || '';
+      // ponytail: <input type="date"> wants YYYY-MM-DD, stored records are DD-MM-YYYY
+      document.getElementById('formDob').value = (record?.dateOfBirth || '').split('-').reverse().join('-');
       document.getElementById('formOpening').value = record?.dateOfOpening || '';
       document.getElementById('formMaturity').value = record?.dateOfMaturity || '';
       document.getElementById('formMonthly').value = record?.monthlyInstallment ?? '';
@@ -651,7 +652,7 @@
         name: document.getElementById('formName').value,
         accountNo: document.getElementById('formAccountNo').value,
         cif: document.getElementById('formCif').value,
-        dateOfBirth: document.getElementById('formDob').value,
+        dateOfBirth: document.getElementById('formDob').value.split('-').reverse().join('-'),
         dateOfOpening: document.getElementById('formOpening').value,
         dateOfMaturity: document.getElementById('formMaturity').value,
         monthlyInstallment: document.getElementById('formMonthly').value

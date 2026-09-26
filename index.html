@@ -1208,7 +1208,8 @@
       margin-bottom: 14px;
     }
 
-    .lookup-card input[type="text"] {
+    .lookup-card input[type="text"],
+    .lookup-card input[type="date"] {
       width: 100%;
       min-height: 46px;
       padding: 12px 13px;
@@ -1221,7 +1222,8 @@
       font-size: 16px;
     }
 
-    .lookup-card input[type="text"]:focus {
+    .lookup-card input[type="text"]:focus,
+    .lookup-card input[type="date"]:focus {
       border-color: var(--teal);
       box-shadow: 0 0 0 3px rgba(8, 127, 120, .12);
     }
@@ -1440,7 +1442,7 @@
             </div>
             <div class="control">
               <label class="control-label" for="lookupDateOfBirth">Date of birth</label>
-              <input id="lookupDateOfBirth" name="dateOfBirth" type="text" inputmode="numeric" placeholder="DD-MM-YYYY" autocomplete="off" maxlength="10" required>
+              <input id="lookupDateOfBirth" name="dateOfBirth" type="date" autocomplete="off" required>
             </div>
           </div>
           <button class="primary" id="lookupSubmit" type="submit">Look up deposit</button>
@@ -2132,7 +2134,8 @@
       lookupSubmit.disabled = true;
       lookupSubmit.textContent = 'Looking up…';
       const accountNo = lookupAccountNo.value.replace(/\s+/g, '');
-      const dateOfBirth = lookupDateOfBirth.value.trim();
+      // ponytail: <input type="date"> gives YYYY-MM-DD, server keys on DD-MM-YYYY
+      const dateOfBirth = lookupDateOfBirth.value.split('-').reverse().join('-');
       try {
         if (!accountNo || !dateOfBirth) throw new Error('lookup-input-invalid');
         const data = await requestLookup(accountNo, dateOfBirth);
