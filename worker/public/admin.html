@@ -96,15 +96,65 @@
     .import-problems p { margin: 0 0 6px; font-size: 12px; }
     .import-problems p.error { color: var(--red); font-weight: 700; }
     .import-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 2px 14px; margin-top: 6px; max-height: 190px; overflow: auto; }
-    @media (max-width: 760px) {
+    @media (max-width: 900px) {
       .topbar, .toolbar { align-items: stretch; flex-direction: column; }
-      .access { text-align: left; }
       .search { align-items: stretch; flex-direction: column; }
       .actions { justify-content: stretch; }
       .actions .button { flex: 1; }
+    }
+
+    @media (max-width: 760px) {
+      .access { text-align: left; }
       .stats { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
       .form-grid .full { grid-column: auto; }
+      .stat { padding: 11px 12px; }
+      .stat strong { font-size: 19px; }
+      .shell {
+        padding-top: max(24px, env(safe-area-inset-top));
+        padding-bottom: max(48px, calc(24px + env(safe-area-inset-bottom)));
+      }
+    }
+
+    /* No sideways panning: every record becomes a stacked card, one field per
+       line, the way the public app already does it. */
+    @media (max-width: 900px) {
+      .table-wrap { overflow-x: visible; }
+      table { min-width: 0; display: block; }
+      thead { display: none; }
+      tbody { display: block; }
+      tr {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 10px 12px;
+        padding: 14px 15px;
+        border-bottom: 1px solid var(--line);
+      }
+      tbody tr:last-child { border-bottom: 0; }
+      td { display: block; grid-column: 2; padding: 0; border: 0; }
+      td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 2px;
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+      }
+      td:nth-child(2)::before { content: none; }
+      td.select-cell { grid-column: 1; grid-row: 1; width: auto; text-align: left; }
+      td.select-cell::before { content: none; }
+      td.empty { display: block; }
+      td.row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      td.row-actions::before { flex: 0 0 100%; }
+      .select-cell input, .check input { width: 22px; height: 22px; font-size: 16px; }
+    }
+
+    @media (pointer: coarse) {
+      .button { min-height: 44px; }
+      .button.small { min-height: 40px; padding: 9px 11px; }
+      .close { width: 40px; height: 40px; }
     }
   </style>
 </head>
@@ -228,6 +278,8 @@
     const importMissing = document.getElementById('importMissing');
     const importStatement = document.getElementById('importStatement');
     const applyImportButton = document.getElementById('applyImport');
+    // Reused as the card headings when the table stacks on a phone.
+    const columnLabels = [...document.querySelectorAll('thead th')].map((cell) => cell.textContent.trim());
     let pendingImport = null;
 
     const WARNING_TEXT = {
@@ -458,6 +510,7 @@
           actions.append(actionButton('Restore', () => restoreRecord(record)));
         }
         row.append(selectCell, customer, account, dates, monthly, deposited, status, actions);
+        row.querySelectorAll('td').forEach((cell, index) => { cell.dataset.label = columnLabels[index] || ''; });
         recordsBody.append(row);
       }
       updateSelectionUI();

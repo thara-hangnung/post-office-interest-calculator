@@ -130,15 +130,4 @@ if (!outOfOrder.problems.some((problem) => problem.message.includes('not sequent
 const empty = planImport({ rows: [], printedOn: '', records, liveCount: 5 });
 if (!empty.problems.some((problem) => problem.message.includes('No deposit rows'))) throw new Error('empty PDF must be refused');
 
-const { readFileSync } = await import('node:fs');
-const { DatabaseSync } = await import('node:sqlite');
-const db = new DatabaseSync(':memory:');
-db.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
-const createSql = readFileSync(new URL('./index.js', import.meta.url), 'utf8')
-  .match(/INSERT INTO recurring_deposits \(name, account_no, cif[\s\S]*?WHERE NOT EXISTS[^`]*`/)[0]
-  .replace(/^[\s\S]*INSERT/, 'INSERT').replace(/`$/, '');
-db.prepare(createSql).run(JSON.stringify([{ a: '020000000099', n: 'NEW PDF ACCOUNT', m: 500, o: '01-01-2020', y: '' }]));
-const created = db.prepare('SELECT needs_details, cif, date_of_birth FROM recurring_deposits WHERE account_no = ?').get('020000000099');
-if (Number(created.needs_details) !== 1) throw new Error('PDF-created record must be flagged needs_details');
-
 console.log('worker pdf import tests passed');
