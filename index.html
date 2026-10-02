@@ -1317,6 +1317,56 @@
       .lookup-account { white-space: normal; }
     }
 
+    /* ---- Phones and tablets ------------------------------------------------ */
+
+    /* Stops iOS inflating every font when the phone is turned sideways. */
+    html { -webkit-text-size-adjust: 100%; }
+
+    @media (pointer: coarse) {
+      /* A 6px track is impossible to grab with a thumb; the input keeps a
+         6px painted track but gets a 26px tall hit area. */
+      input[type="range"] {
+        height: 26px;
+        background: linear-gradient(90deg, var(--orange) var(--progress), var(--line) var(--progress)) center / 100% 6px no-repeat;
+      }
+      input[type="range"]::-webkit-slider-thumb { width: 26px; height: 26px; }
+      input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
+      .primary, .secondary { min-height: 46px; }
+      /* Text-link sized control, so give it a finger-sized box. */
+      .rate-reset { min-height: 34px; padding: 8px; margin: -8px; }
+    }
+
+    @media (max-width: 700px) {
+      /* Keep the notch and the home indicator clear. */
+      .app {
+        padding-top: max(20px, env(safe-area-inset-top));
+        padding-bottom: max(42px, calc(20px + env(safe-area-inset-bottom)));
+      }
+
+      /* The install offer is a bottom sheet on a phone, not a modal: it must
+         never sit between the user and the calculator. */
+      .install-popup {
+        align-items: end;
+        padding: 10px;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+        background: none;
+        pointer-events: none;
+      }
+      .install-popup-card {
+        width: min(100%, 460px);
+        padding: 15px 16px;
+        border-radius: 16px;
+        pointer-events: auto;
+      }
+      .install-popup-mark { display: none; }
+      .install-popup h2 { margin-bottom: 3px; font-size: 18px; }
+      .install-popup p { font-size: 12px; }
+      .install-popup-actions { flex-direction: row; gap: 8px; }
+      .install-popup-actions button { flex: 1; width: auto; }
+      body.install-open { overflow: visible; }
+      body.install-open .app { padding-bottom: 175px; }
+    }
+
   </style>
 </head>
 <body>
@@ -1823,6 +1873,7 @@
       installApp.textContent = deferredInstallPrompt ? 'Install app' : 'Show install steps';
       installApp.disabled = false;
       installHint.hidden = true;
+      installPopup.setAttribute('aria-modal', String(window.innerWidth > 700));
       installPopup.hidden = false;
       document.body.classList.add('install-open');
       installApp.focus({ preventScroll: true });
@@ -1890,7 +1941,7 @@
       const scheme = schemes[selectedId];
       const currentRate = officialRateFor(scheme, Number(yearsNumber.value));
       const action = rateEdited ? 'reset to' : 'use';
-      rateHint.innerHTML = `Published rate: <strong>${rateText(currentRate)}%</strong> · <button class="rate-reset" id="resetRate" type="button">${action} ${rateText(currentRate)}%</button>`;
+      rateHint.innerHTML = `Published rate: <strong>${rateText(currentRate)}</strong> · <button class="rate-reset" id="resetRate" type="button">${action} ${rateText(currentRate)}</button>`;
       document.getElementById('resetRate').addEventListener('click', resetRate);
     }
 
