@@ -408,16 +408,43 @@ async function getRecord(env, id, includeDeleted = true) {
   return env.DB.prepare(recordSelect(where)).bind(id).first();
 }
 
+// Same customer name = same person, so CIF and date of birth travel together.
+// ponytail: fills only blank siblings and refuses on a real mismatch; switch to a
+// person table keyed by name if the same name can ever be two different people.
+async function syncSameNameIdentity(env, values, exceptId = 0) {
+  if (!values.cif || !values.dateOfBirth) return null;
+  const conflicts = await env.DB.prepare(`
+    SELECT account_no FROM recurring_deposits
+    WHERE name = ? COLLATE NOCASE AND id != ? AND deleted_at IS NULL
+      AND (cif <> '' OR date_of_birth <> '')
+      AND (cif <> ? OR date_of_birth <> ?)
+    LIMIT 5
+  `).bind(values.name, exceptId, values.cif, values.dateOfBirth).all();
+  if (conflicts.results?.length) {
+    throw new Error(`Account(s) ${conflicts.results.map((row) => row.account_no).join(', ')} have this name with a different CIF or date of birth. Fix those first so the details match.`);
+  }
+  return env.DB.prepare(`
+    UPDATE recurring_deposits
+    SET cif = ?, date_of_birth = ?,
+        needs_details = CASE WHEN date_of_opening = '' THEN 1 ELSE 0 END,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE name = ? COLLATE NOCASE AND id != ? AND deleted_at IS NULL
+      AND (cif = '' OR date_of_birth = '')
+  `).bind(values.cif, values.dateOfBirth, values.name, exceptId);
+}
+
 async function createRecord(request, env, email) {
   if (!requireSameOrigin(request)) throw new Error('Invalid request origin.');
   const input = await readJson(request);
   const values = validateRecord(input);
-  const inserted = await env.DB.prepare(`
+  const sync = await syncSameNameIdentity(env, values);
+  const insert = env.DB.prepare(`
     INSERT INTO recurring_deposits
       (name, account_no, cif, date_of_opening, date_of_maturity, date_of_birth, monthly_installment)
     VALUES (?, ?, ?, ?, ?, ?, ?)
     RETURNING id
-  `).bind(values.name, values.accountNo, values.cif, values.dateOfOpening, values.dateOfMaturity, values.dateOfBirth, values.monthlyInstallment).first();
+  `).bind(values.name, values.accountNo, values.cif, values.dateOfOpening, values.dateOfMaturity, values.dateOfBirth, values.monthlyInstallment);
+  const [inserted] = sync ? await env.DB.batch([sync, insert]) : [await insert.first()];
   const id = Number(inserted.id);
   await audit(env, email, 'create', id);
   return getRecord(env, id);
@@ -429,12 +456,15 @@ async function updateRecord(request, env, email, id) {
   if (!existing) return null;
   const input = await readJson(request);
   const values = validateRecord(input, existing, Boolean(existing.needs_details));
-  await env.DB.prepare(`
+  const update = env.DB.prepare(`
     UPDATE recurring_deposits
     SET name = ?, account_no = ?, cif = ?, date_of_opening = ?, date_of_maturity = ?,
         date_of_birth = ?, monthly_installment = ?, needs_details = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).bind(values.name, values.accountNo, values.cif, values.dateOfOpening, values.dateOfMaturity, values.dateOfBirth, values.monthlyInstallment, values.needsDetails ? 1 : 0, id).run();
+  `).bind(values.name, values.accountNo, values.cif, values.dateOfOpening, values.dateOfMaturity, values.dateOfBirth, values.monthlyInstallment, values.needsDetails ? 1 : 0, id);
+  const sync = await syncSameNameIdentity(env, values, id);
+  if (sync) await env.DB.batch([sync, update]);
+  else await update.run();
   await audit(env, email, 'update', id);
   return getRecord(env, id);
 }
