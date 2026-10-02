@@ -293,9 +293,9 @@ async function applyPdfImport(request, env, email, url) {
   const statements = [];
   if (createsJson !== '[]') {
     statements.push(env.DB.prepare(`
-      INSERT INTO recurring_deposits (name, account_no, monthly_installment, date_of_opening, date_of_maturity, needs_details)
-      SELECT json_extract(j.value, '$.n'), json_extract(j.value, '$.a'), json_extract(j.value, '$.m'),
-             NULLIF(json_extract(j.value, '$.o'), ''), NULLIF(json_extract(j.value, '$.y'), ''), 1
+      INSERT INTO recurring_deposits (name, account_no, cif, date_of_opening, date_of_maturity, date_of_birth, monthly_installment, needs_details)
+      SELECT json_extract(j.value, '$.n'), json_extract(j.value, '$.a'), '', NULLIF(json_extract(j.value, '$.o'), ''),
+             NULLIF(json_extract(j.value, '$.y'), ''), '', json_extract(j.value, '$.m'), 1
       FROM json_each(?) AS j
       WHERE NOT EXISTS (SELECT 1 FROM recurring_deposits r WHERE r.account_no = json_extract(j.value, '$.a'))
     `).bind(createsJson));
